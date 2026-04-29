@@ -123,7 +123,6 @@
                     <td colspan="8" class="px-2">
                         <div class="flex items-center w-full">
                             <span class="font-bold">注：</span>
-                            <!-- 取消了黄底高亮，并去掉了默认的文字内容 -->
                             <input type="text" class="flex-1 focus:outline-none bg-transparent hover:bg-gray-50 focus:bg-yellow-50 transition px-1" placeholder="请在此输入补充说明 (可选)...">
                         </div>
                     </td>
@@ -139,9 +138,6 @@
 
             <!-- 供需双方信息 -->
             <tbody class="text-left text-[12px] leading-snug">
-                <!-- 隐藏的电子公章，绝对定位在供方区域 -->
-                <img id="partyA_seal" src="./seal.png" class="realistic-stamp absolute left-20 bottom-10 w-[120px] h-[120px] opacity-95 z-10" alt="公章" onerror="this.style.display='none'">
-
                 <tr>
                     <td colspan="4" class="w-1/2 px-2 py-1 align-top relative z-0">
                         <div class="flex"><span class="w-16">供方：</span><input type="text" id="partyA_name" class="flex-1 focus:outline-none font-bold"></div>
@@ -192,6 +188,12 @@
                 </tr>
             </tbody>
         </table>
+
+        <!-- 公章区域：调整 top 值，让其悬浮盖在产品明细表格的右下方(即箭头指定位置) -->
+        <div class="relative w-full pointer-events-none">
+            <img id="partyA_seal" src="./shy.png" class="realistic-stamp absolute right-[8%] -top-[340px] w-[170px] h-[170px] opacity-95 z-20" alt="公章" onerror="this.style.display='none'">
+        </div>
+
     </div>
 
     <!-- 弹窗：智能识别需方 -->
@@ -227,7 +229,8 @@
                 agent: '蔡国贵 13824361177',
                 address: '深圳市龙岗区高科大道56号万达科技园1号厂',
                 priceHeaderHtml: '含13%税单价',
-                showSeal: true
+                showSeal: true,
+                sealSrc: './shy.png'
             },
             huixinfa: {
                 name: '深圳市龙岗区惠新发五金钢材商行',
@@ -237,7 +240,8 @@
                 agent: '蔡国贵 13824361177',
                 address: '深圳市龙岗区宝龙街道高科大道万达科技园56号1号厂房',
                 priceHeaderHtml: '单价',
-                showSeal: false
+                showSeal: true,
+                sealSrc: './hxf.png'
             }
         };
 
@@ -254,7 +258,15 @@
             setTimeout(() => adjustTextareaHeight(addrEl), 0);
             
             document.getElementById('th-price').innerHTML = data.priceHeaderHtml;
-            document.getElementById('partyA_seal').style.display = data.showSeal ? 'block' : 'none';
+            
+            // 智能切换印章
+            const sealImg = document.getElementById('partyA_seal');
+            if (data.showSeal) {
+                sealImg.src = data.sealSrc;
+                sealImg.style.display = 'block';
+            } else {
+                sealImg.style.display = 'none';
+            }
         }
 
         window.onload = function() {
