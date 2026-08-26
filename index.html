@@ -12,6 +12,7 @@
             font-family: "SimSun", "Songti SC", "Times New Roman", serif;
             margin: 0;
             padding: 0;
+            user-select: none; /* 避免拖拽时误选文字 */
         }
         .a4-paper {
             width: 210mm;
@@ -22,31 +23,63 @@
             padding: 15mm 15mm; 
             box-sizing: border-box;
             position: relative;
-            transition: padding 0.2s ease;
         }
         
-        /* 优化打印线宽：改为 1px 且使用深灰色(#666666)，高级精细 */
+        /* 表格线宽与边框 */
         .box-table {
             border-collapse: collapse;
             width: 100%;
+            table-layout: fixed; /* 固定布局便于精准拖拽列宽 */
         }
         .box-table th, .box-table td {
             border: 1px solid #666666 !important; 
-            transition: padding 0.15s ease;
+            position: relative;
+            overflow: hidden;
         }
 
         input, textarea {
             background-color: transparent;
             color: #000;
+            user-select: text;
         }
         input[type=number]::-webkit-inner-spin-button, 
         input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         input[type=number] { -moz-appearance: textfield; }
         
+        /* 印章支持鼠标按住拖拽 */
         .realistic-stamp {
             mix-blend-mode: multiply;
-            pointer-events: none;
-            transition: top 0.1s ease, right 0.1s ease;
+            cursor: move;
+            user-select: none;
+            position: absolute;
+            z-index: 30;
+        }
+
+        /* Excel 风格的列宽/行高拖拽手柄 */
+        .col-resizer {
+            position: absolute;
+            top: 0;
+            right: -3px;
+            width: 6px;
+            height: 100%;
+            cursor: col-resize;
+            z-index: 40;
+        }
+        .col-resizer:hover, .col-resizer.resizing {
+            background-color: #3b82f6;
+        }
+
+        .row-resizer {
+            position: absolute;
+            bottom: -3px;
+            left: 0;
+            width: 100%;
+            height: 6px;
+            cursor: row-resize;
+            z-index: 40;
+        }
+        .row-resizer:hover, .row-resizer.resizing {
+            background-color: #3b82f6;
         }
 
         /* 滚动条美化 */
@@ -57,7 +90,7 @@
 
         @media print {
             body { background: white; margin: 0; padding: 0; }
-            .no-print { display: none !important; }
+            .no-print, .col-resizer, .row-resizer { display: none !important; }
             input::placeholder, textarea::placeholder { color: transparent !important; }
             .a4-paper { box-shadow: none; margin: 0; width: 100%; min-height: 100%; padding: 10mm; }
             @page { size: A4 portrait; margin: 0; }
@@ -78,17 +111,16 @@
                     惠新发 (普票)
                 </button>
             </div>
-            <button onclick="toggleSpacingPanel()" class="px-3 py-1.5 bg-teal-600 text-white text-xs font-bold rounded shadow-sm hover:bg-teal-700 transition flex items-center">
-                📐 间距/印章微调
-            </button>
+            <span class="text-xs text-amber-300 bg-amber-950/60 px-2.5 py-1 rounded border border-amber-700/50 flex items-center">
+                💡 鼠标可直接拉动边框调节列宽/行高，按住公章可拖拽位置
+            </span>
+        </div>
+        <div class="flex items-center gap-3">
             <button onclick="openParseModal()" class="px-3 py-1.5 bg-fuchsia-600 text-white text-xs font-bold rounded shadow-sm hover:bg-fuchsia-700 transition flex items-center">
                 <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                 识别需方资料
             </button>
-        </div>
-        <div class="flex items-center gap-3">
             <button onclick="manualSaveQuote()" class="px-4 py-1.5 bg-amber-600 text-white text-xs font-bold rounded shadow-sm hover:bg-amber-700 transition flex items-center">
-                <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
                 保存报价
             </button>
             <button onclick="window.print()" class="px-4 py-1.5 bg-green-600 text-white text-xs font-bold rounded shadow-sm hover:bg-green-700 transition flex items-center">
@@ -98,31 +130,6 @@
                 下载 PDF
             </button>
         </div>
-    </div>
-
-    <!-- 间距微调可折叠控制面板 -->
-    <div id="spacing-panel" class="no-print fixed top-[60px] left-[280px] right-0 bg-gray-700 text-white text-xs py-2 px-6 z-40 hidden shadow-xl flex flex-wrap items-center gap-6 border-t border-gray-600">
-        <div class="flex items-center gap-2">
-            <span class="font-bold text-teal-300">印章垂直位置(Y)：</span>
-            <input type="range" id="slider-stamp-y" min="-500" max="-100" value="-340" class="w-32 accent-teal-400" oninput="updateSpacingSettings()">
-            <span id="val-stamp-y" class="w-12 text-gray-300">-340px</span>
-        </div>
-        <div class="flex items-center gap-2">
-            <span class="font-bold text-teal-300">印章水平位置(X)：</span>
-            <input type="range" id="slider-stamp-x" min="2" max="30" value="8" class="w-32 accent-teal-400" oninput="updateSpacingSettings()">
-            <span id="val-stamp-x" class="w-8 text-gray-300">8%</span>
-        </div>
-        <div class="flex items-center gap-2">
-            <span class="font-bold text-teal-300">表格行高/间距：</span>
-            <input type="range" id="slider-row-height" min="1" max="10" value="3" class="w-28 accent-teal-400" oninput="updateSpacingSettings()">
-            <span id="val-row-height" class="w-8 text-gray-300">3px</span>
-        </div>
-        <div class="flex items-center gap-2">
-            <span class="font-bold text-teal-300">页面页边距：</span>
-            <input type="range" id="slider-page-padding" min="8" max="25" value="15" class="w-28 accent-teal-400" oninput="updateSpacingSettings()">
-            <span id="val-page-padding" class="w-10 text-gray-300">15mm</span>
-        </div>
-        <button onclick="resetSpacingSettings()" class="ml-auto px-2.5 py-1 bg-gray-600 hover:bg-gray-500 rounded text-gray-200 text-[11px]">恢复默认</button>
     </div>
 
     <!-- 左侧边栏 (客户库 + 历史报价) -->
@@ -172,19 +179,19 @@
                 </div>
             </div>
 
-            <!-- 核心报价表格 -->
-            <table class="box-table text-[12px] text-center w-full relative">
+            <!-- 核心报价表格 (支持 Excel 拖拽列宽/行高) -->
+            <table id="quote-table" class="box-table text-[12px] text-center w-full relative">
                 <thead>
                     <tr class="bg-gray-50 font-bold h-8">
-                        <th class="w-10">编号</th>
-                        <th class="">名称</th>
-                        <th class="w-[10%]">代号</th>
-                        <th class="w-[12%]">规格</th>
-                        <th class="w-[10%]">材质</th>
-                        <th class="w-14">数量</th>
-                        <th class="w-[12%] text-red-600 leading-tight" id="th-price">含税13%<br>单价</th>
-                        <th class="w-[12%]">合计</th>
-                        <th class="w-[8%]">备注</th>
+                        <th style="width: 45px;">编号</th>
+                        <th style="width: 160px;">名称</th>
+                        <th style="width: 65px;">代号</th>
+                        <th style="width: 80px;">规格</th>
+                        <th style="width: 65px;">材质</th>
+                        <th style="width: 55px;">数量</th>
+                        <th style="width: 85px;" class="text-red-600 leading-tight" id="th-price">含税13%<br>单价</th>
+                        <th style="width: 85px;">合计</th>
+                        <th style="width: 60px;">备注</th>
                     </tr>
                 </thead>
                 
@@ -265,10 +272,8 @@
                 </tbody>
             </table>
 
-            <!-- 印章图层：支持通过微调面板调节 top 和 right 参数 -->
-            <div class="relative w-full pointer-events-none">
-                <img id="partyA_seal" src="./shy.png" class="realistic-stamp absolute w-[170px] h-[170px] opacity-95 z-20" style="right: 8%; top: -340px;" alt="公章" onerror="this.style.display='none'">
-            </div>
+            <!-- 可鼠标自由按住拖拽的公章 -->
+            <img id="partyA_seal" src="./shy.png" class="realistic-stamp w-[170px] h-[170px] opacity-95" style="left: 480px; top: 620px;" alt="公章" onerror="this.style.display='none'">
 
         </div>
     </main>
@@ -359,43 +364,113 @@
             }
         }
 
-        // ================= 2. 间距与印章移动微调面板 =================
-        function toggleSpacingPanel() {
-            const panel = document.getElementById('spacing-panel');
-            panel.classList.toggle('hidden');
-        }
+        // ================= 2. Excel 风格：鼠标按住拉动列宽 & 行高 & 拖拽公章 =================
+        function initExcelDragFeatures() {
+            const table = document.getElementById('quote-table');
 
-        function updateSpacingSettings() {
-            const stampY = document.getElementById('slider-stamp-y').value;
-            const stampX = document.getElementById('slider-stamp-x').value;
-            const rowHeight = document.getElementById('slider-row-height').value;
-            const pagePadding = document.getElementById('slider-page-padding').value;
+            // A. 初始化列宽拖拽 (Header Column Resizer)
+            const headers = table.querySelectorAll('thead th');
+            headers.forEach((th) => {
+                const resizer = document.createElement('div');
+                resizer.className = 'col-resizer no-print';
+                th.appendChild(resizer);
 
-            document.getElementById('val-stamp-y').innerText = `${stampY}px`;
-            document.getElementById('val-stamp-x').innerText = `${stampX}%`;
-            document.getElementById('val-row-height').innerText = `${rowHeight}px`;
-            document.getElementById('val-page-padding').innerText = `${pagePadding}mm`;
+                let startX = 0, startWidth = 0;
 
-            // 实时应用到样式
-            const sealImg = document.getElementById('partyA_seal');
-            sealImg.style.top = `${stampY}px`;
-            sealImg.style.right = `${stampX}%`;
+                resizer.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    startX = e.clientX;
+                    startWidth = th.offsetWidth;
+                    resizer.classList.add('resizing');
 
-            const a4Paper = document.getElementById('quote-content');
-            a4Paper.style.padding = `${pagePadding}mm`;
+                    const onMouseMove = (moveEvent) => {
+                        const newWidth = startWidth + (moveEvent.clientX - startX);
+                        if (newWidth > 25) {
+                            th.style.width = `${newWidth}px`;
+                        }
+                    };
 
-            document.querySelectorAll('.box-table td, .box-table th').forEach(cell => {
-                cell.style.paddingTop = `${rowHeight}px`;
-                cell.style.paddingBottom = `${rowHeight}px`;
+                    const onMouseUp = () => {
+                        resizer.classList.remove('resizing');
+                        document.removeEventListener('mousemove', onMouseMove);
+                        document.removeEventListener('mouseup', onMouseUp);
+                    };
+
+                    document.addEventListener('mousemove', onMouseMove);
+                    document.addEventListener('mouseup', onMouseUp);
+                });
             });
+
+            // B. 初始化公章自由鼠标拖拽
+            initStampDrag();
         }
 
-        function resetSpacingSettings() {
-            document.getElementById('slider-stamp-y').value = -340;
-            document.getElementById('slider-stamp-x').value = 8;
-            document.getElementById('slider-row-height').value = 3;
-            document.getElementById('slider-page-padding').value = 15;
-            updateSpacingSettings();
+        // 动态给表格每行挂载行高拖拽手柄
+        function attachRowResizer(tr) {
+            let resizer = tr.querySelector('.row-resizer');
+            if (!resizer) {
+                resizer = document.createElement('div');
+                resizer.className = 'row-resizer no-print';
+                tr.appendChild(resizer);
+
+                let startY = 0, startHeight = 0;
+
+                resizer.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    startY = e.clientY;
+                    startHeight = tr.offsetHeight;
+                    resizer.classList.add('resizing');
+
+                    const onMouseMove = (moveEvent) => {
+                        const newHeight = startHeight + (moveEvent.clientY - startY);
+                        if (newHeight > 20) {
+                            tr.style.height = `${newHeight}px`;
+                        }
+                    };
+
+                    const onMouseUp = () => {
+                        resizer.classList.remove('resizing');
+                        document.removeEventListener('mousemove', onMouseMove);
+                        document.removeEventListener('mouseup', onMouseUp);
+                    };
+
+                    document.addEventListener('mousemove', onMouseMove);
+                    document.addEventListener('mouseup', onMouseUp);
+                });
+            }
+        }
+
+        // 公章自由鼠标拖动函数
+        function initStampDrag() {
+            const seal = document.getElementById('partyA_seal');
+            let isDragging = false;
+            let startX, startY, initialLeft, initialTop;
+
+            seal.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                isDragging = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                initialLeft = seal.offsetLeft;
+                initialTop = seal.offsetTop;
+
+                const onMouseMove = (moveEvent) => {
+                    if (!isDragging) return;
+                    const dx = moveEvent.clientX - startX;
+                    const dy = moveEvent.clientY - startY;
+                    seal.style.left = `${initialLeft + dx}px`;
+                    seal.style.top = `${initialTop + dy}px`;
+                };
+
+                const onMouseUp = () => {
+                    isDragging = false;
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                };
+
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            });
         }
 
         window.onload = function() {
@@ -416,6 +491,9 @@
                 insertRowHTML(document.getElementById('product-tbody'), 'prod');
             }
             updateRowIndices();
+
+            // 挂载所有拖拽处理逻辑
+            initExcelDragFeatures();
 
             renderSavedClients();
             renderSavedContracts();
@@ -538,7 +616,7 @@
             document.getElementById('partyB_agent').value = data.agent || '';
         }
 
-        // ================= 5. 历史报价单保存与加载 =================
+        // ================= 5. 历史报价单保存与恢复 =================
         let savedQuotes = JSON.parse(localStorage.getItem('quote_records') || '{}');
 
         function saveCurrentQuote() {
@@ -575,6 +653,8 @@
                 }
             });
 
+            const seal = document.getElementById('partyA_seal');
+
             const quoteRecord = {
                 quoteNo: quoteNo,
                 companyType: currentCompanyType,
@@ -588,11 +668,9 @@
                     address: document.getElementById('partyB_address').value,
                     agent: document.getElementById('partyB_agent').value,
                 },
-                spacing: {
-                    stampY: document.getElementById('slider-stamp-y').value,
-                    stampX: document.getElementById('slider-stamp-x').value,
-                    rowHeight: document.getElementById('slider-row-height').value,
-                    pagePadding: document.getElementById('slider-page-padding').value,
+                sealPos: {
+                    left: seal.style.left,
+                    top: seal.style.top
                 },
                 items: items,
                 updatedAt: new Date().toLocaleString('zh-CN', { hour12: false })
@@ -686,12 +764,10 @@
                 document.getElementById('partyB_agent').value = quote.partyB.agent || '';
             }
 
-            if (quote.spacing) {
-                document.getElementById('slider-stamp-y').value = quote.spacing.stampY || -340;
-                document.getElementById('slider-stamp-x').value = quote.spacing.stampX || 8;
-                document.getElementById('slider-row-height').value = quote.spacing.rowHeight || 3;
-                document.getElementById('slider-page-padding').value = quote.spacing.pagePadding || 15;
-                updateSpacingSettings();
+            if (quote.sealPos) {
+                const seal = document.getElementById('partyA_seal');
+                seal.style.left = quote.sealPos.left || '480px';
+                seal.style.top = quote.sealPos.top || '620px';
             }
 
             const tbody = document.getElementById('product-tbody');
@@ -767,8 +843,6 @@
         function insertRowHTML(parent, type, insertAfterNode = null) {
             const tr = document.createElement('tr');
             tr.className = `item-row ${type}-row group relative h-7`;
-            
-            const rowHeight = document.getElementById('slider-row-height').value || 3;
 
             const actionsHTML = `
                 <div class="absolute -right-[4.5rem] top-0 hidden group-hover:flex no-print gap-1 z-10">
@@ -780,25 +854,25 @@
 
             if (type === 'prod') {
                 tr.innerHTML = `
-                    <td class="p-0 row-index bg-gray-50 text-gray-500 font-medium" style="padding-top:${rowHeight}px; padding-bottom:${rowHeight}px;"></td>
-                    <td class="p-0" style="padding-top:${rowHeight}px; padding-bottom:${rowHeight}px;"><input type="text" class="name-input w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-50"></td>
-                    <td class="p-0" style="padding-top:${rowHeight}px; padding-bottom:${rowHeight}px;"><input type="text" class="w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-50"></td>
-                    <td class="p-0" style="padding-top:${rowHeight}px; padding-bottom:${rowHeight}px;"><input type="text" class="w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-50"></td>
-                    <td class="p-0" style="padding-top:${rowHeight}px; padding-bottom:${rowHeight}px;"><input type="text" class="w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-50"></td>
-                    <td class="p-0" style="padding-top:${rowHeight}px; padding-bottom:${rowHeight}px;"><input type="number" class="qty w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-50" oninput="calcTotal()"></td>
-                    <td class="p-0" style="padding-top:${rowHeight}px; padding-bottom:${rowHeight}px;"><input type="number" step="0.01" class="price w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-50" oninput="calcTotal()" onblur="formatDecimal(this)"></td>
-                    <td class="p-0" style="padding-top:${rowHeight}px; padding-bottom:${rowHeight}px;"><input type="text" class="row-total w-full h-full px-1 text-center font-bold text-gray-700 bg-gray-50 focus:outline-none" readonly tabindex="-1"></td>
-                    <td class="p-0 relative" style="padding-top:${rowHeight}px; padding-bottom:${rowHeight}px;">
+                    <td class="p-0 row-index bg-gray-50 text-gray-500 font-medium"></td>
+                    <td class="p-0"><input type="text" class="name-input w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-50"></td>
+                    <td class="p-0"><input type="text" class="w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-50"></td>
+                    <td class="p-0"><input type="text" class="w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-50"></td>
+                    <td class="p-0"><input type="text" class="w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-50"></td>
+                    <td class="p-0"><input type="number" class="qty w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-50" oninput="calcTotal()"></td>
+                    <td class="p-0"><input type="number" step="0.01" class="price w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-50" oninput="calcTotal()" onblur="formatDecimal(this)"></td>
+                    <td class="p-0"><input type="text" class="row-total w-full h-full px-1 text-center font-bold text-gray-700 bg-gray-50 focus:outline-none" readonly tabindex="-1"></td>
+                    <td class="p-0 relative">
                         <input type="text" class="w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-50">
                         ${actionsHTML}
                     </td>
                 `;
             } else {
                 tr.innerHTML = `
-                    <td class="p-0 row-index bg-gray-50 text-gray-500 font-medium" style="padding-top:${rowHeight}px; padding-bottom:${rowHeight}px;"></td>
-                    <td class="p-0" colspan="6" style="padding-top:${rowHeight}px; padding-bottom:${rowHeight}px;"><input type="text" class="note-input w-full h-full px-2 text-center text-blue-800 focus:outline-none focus:bg-yellow-50" placeholder="在此输入合并说明(如:含模具费XXX元)"></td>
-                    <td class="p-0 bg-gray-50" style="padding-top:${rowHeight}px; padding-bottom:${rowHeight}px;"></td>
-                    <td class="p-0 relative bg-gray-50" style="padding-top:${rowHeight}px; padding-bottom:${rowHeight}px;">
+                    <td class="p-0 row-index bg-gray-50 text-gray-500 font-medium"></td>
+                    <td class="p-0" colspan="6"><input type="text" class="note-input w-full h-full px-2 text-center text-blue-800 focus:outline-none focus:bg-yellow-50" placeholder="在此输入合并说明(如:含模具费XXX元)"></td>
+                    <td class="p-0 bg-gray-50"></td>
+                    <td class="p-0 relative bg-gray-50">
                         ${actionsHTML}
                     </td>
                 `;
@@ -809,6 +883,9 @@
             } else {
                 parent.appendChild(tr);
             }
+
+            // 给新生成的行绑定 Excel 行高拖拽手柄
+            attachRowResizer(tr);
         }
 
         function updateRowIndices() {
