@@ -12,7 +12,7 @@
             font-family: "SimSun", "Songti SC", "Times New Roman", serif;
             margin: 0;
             padding: 0;
-            user-select: none; /* 避免拖拽时误选文字 */
+            user-select: none;
         }
         .a4-paper {
             width: 210mm;
@@ -29,13 +29,18 @@
         .box-table {
             border-collapse: collapse;
             width: 100%;
-            table-layout: fixed; /* 必须使用 fixed，确保左右两端总宽度绝对固定 */
+            table-layout: fixed;
         }
         .box-table th, .box-table td {
             border: 1px solid #666666 !important; 
             position: relative;
             overflow: hidden;
             word-break: break-all;
+        }
+
+        /* 最后一列允许悬浮菜单溢出，防止按钮被截断遮挡单元格 */
+        .box-table td:last-child {
+            overflow: visible !important;
         }
 
         input, textarea {
@@ -47,7 +52,7 @@
         input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         input[type=number] { -moz-appearance: textfield; }
         
-        /* 印章支持鼠标按住拖拽，并限制在 A4 纸内 */
+        /* 公章样式：默认盖在供方区域，鼠标可按住拖拽 */
         .realistic-stamp {
             mix-blend-mode: multiply;
             cursor: move;
@@ -56,7 +61,7 @@
             z-index: 30;
         }
 
-        /* 内部列宽/行高拖拽手柄 */
+        /* Excel 风格列宽/行高拖拽手柄 */
         .col-resizer {
             position: absolute;
             top: 0;
@@ -113,7 +118,7 @@
                 </button>
             </div>
             <span class="text-xs text-amber-300 bg-amber-950/60 px-2.5 py-1 rounded border border-amber-700/50 flex items-center">
-                🔒 左右两端已锁定：拖拽列宽自动挤压邻列，公章限制在 A4 纸内
+                🔒 公章默认在供方侧，可拖拽调位；边框可拉拽调列宽
             </span>
         </div>
         <div class="flex items-center gap-3">
@@ -133,7 +138,7 @@
         </div>
     </div>
 
-    <!-- 左侧边栏 -->
+    <!-- 左侧侧边栏 -->
     <aside class="no-print fixed left-0 top-[60px] bottom-0 w-[280px] bg-white shadow-[4px_0_24px_rgba(0,0,0,0.04)] border-r border-gray-200 z-40 flex flex-col">
         <div class="flex border-b border-gray-200 bg-gray-50 text-xs font-bold">
             <button id="tab-clients-btn" onclick="switchSidebarTab('clients')" class="flex-1 py-3 text-center text-indigo-600 border-b-2 border-indigo-600 bg-white transition">
@@ -180,7 +185,7 @@
                 </div>
             </div>
 
-            <!-- 核心报价表格 (固定两端总宽 100%) -->
+            <!-- 核心报价表格 -->
             <table id="quote-table" class="box-table text-[12px] text-center w-full relative">
                 <thead>
                     <tr class="bg-gray-50 font-bold h-8">
@@ -197,7 +202,7 @@
                 </thead>
                 
                 <tbody id="product-tbody">
-                    <!-- JS 动态增减行 -->
+                    <!-- JS 动态生成 -->
                 </tbody>
 
                 <tbody class="text-left">
@@ -220,7 +225,7 @@
                     </tr>
                 </tbody>
 
-                <!-- 供需双方信息 -->
+                <!-- 供需双方信息栏 -->
                 <tbody class="text-left text-[12px] leading-snug">
                     <tr>
                         <td colspan="4" class="w-1/2 px-2 py-1 align-top relative z-0">
@@ -273,8 +278,8 @@
                 </tbody>
             </table>
 
-            <!-- 可拖拽公章 (活动范围锁定在 A4 纸内) -->
-            <img id="partyA_seal" src="./shy.png" class="realistic-stamp w-[170px] h-[170px] opacity-95" style="left: 480px; top: 620px;" alt="公章" onerror="this.style.display='none'">
+            <!-- 默认准确放置在【供方（我们自己）】左下角底部的公章 -->
+            <img id="partyA_seal" src="./shy.png" class="realistic-stamp w-[160px] h-[160px] opacity-90" style="left: 110px; bottom: 35px;" alt="公章" onerror="this.style.display='none'">
 
         </div>
     </main>
@@ -365,12 +370,12 @@
             }
         }
 
-        // ================= 2. 邻列联动拖拽 (保持表格左右两端总宽100%锁死) =================
+        // ================= 2. 邻列联动拖拽与公章拖拽 =================
         function initExcelDragFeatures() {
             const table = document.getElementById('quote-table');
             const headers = Array.from(table.querySelectorAll('thead th'));
 
-            // 循环除去最后一列之外的所有表头（不给最后一列最右侧加拖拽手柄，确保最右端固定）
+            // 循环除去最后一列之外的所有表头，保持最外侧左右两边绝对锁定
             headers.slice(0, headers.length - 1).forEach((th, index) => {
                 const nextTh = headers[index + 1];
                 if (!nextTh) return;
@@ -390,12 +395,11 @@
 
                     const onMouseMove = (moveEvent) => {
                         const deltaX = moveEvent.clientX - startX;
-                        const minWidth = 25; // 限制单列最小宽度，防止拖没了
+                        const minWidth = 25; 
 
                         let newWidth = startWidth + deltaX;
                         let newNextWidth = nextStartWidth - deltaX;
 
-                        // 只有在两列都大于最小宽度时才调整，保证表格左右外框绝对不动！
                         if (newWidth >= minWidth && newNextWidth >= minWidth) {
                             th.style.width = `${newWidth}px`;
                             nextTh.style.width = `${newNextWidth}px`;
@@ -413,11 +417,9 @@
                 });
             });
 
-            // 初始化公章拖拽（带范围限制）
             initStampDrag();
         }
 
-        // 绑定行高拖拽手柄
         function attachRowResizer(tr) {
             let resizer = tr.querySelector('.row-resizer');
             if (!resizer) {
@@ -452,7 +454,7 @@
             }
         }
 
-        // 公章拖拽（活动范围锁定在 A4 纸内）
+        // 公章拖拽（锁死在 A4 纸容器内部）
         function initStampDrag() {
             const seal = document.getElementById('partyA_seal');
             const container = document.getElementById('quote-content');
@@ -480,7 +482,6 @@
                     let newLeft = initialLeft + dx;
                     let newTop = initialTop + dy;
 
-                    // 边界碰撞检查：锁死在 A4 纸张盒子内
                     if (newLeft < 0) newLeft = 0;
                     if (newLeft > containerWidth - sealWidth) newLeft = containerWidth - sealWidth;
                     if (newTop < 0) newTop = 0;
@@ -488,6 +489,7 @@
 
                     seal.style.left = `${newLeft}px`;
                     seal.style.top = `${newTop}px`;
+                    seal.style.bottom = 'auto'; // 清除默认 bottom 定位
                 };
 
                 const onMouseUp = () => {
@@ -520,7 +522,6 @@
             }
             updateRowIndices();
 
-            // 挂载拖拽逻辑
             initExcelDragFeatures();
 
             renderSavedClients();
@@ -792,10 +793,15 @@
                 document.getElementById('partyB_agent').value = quote.partyB.agent || '';
             }
 
-            if (quote.sealPos) {
-                const seal = document.getElementById('partyA_seal');
-                seal.style.left = quote.sealPos.left || '480px';
-                seal.style.top = quote.sealPos.top || '620px';
+            const seal = document.getElementById('partyA_seal');
+            if (quote.sealPos && quote.sealPos.left) {
+                seal.style.left = quote.sealPos.left;
+                seal.style.top = quote.sealPos.top;
+                seal.style.bottom = 'auto';
+            } else {
+                seal.style.left = '110px';
+                seal.style.bottom = '35px';
+                seal.style.top = 'auto';
             }
 
             const tbody = document.getElementById('product-tbody');
@@ -861,7 +867,7 @@
             closeParseModal();
         }
 
-        // ================= 7. 表格增减与智能填充 =================
+        // ================= 7. 表格增减与精准布局悬浮菜单 =================
         function formatDecimal(input) {
             if (input.value !== '' && !isNaN(parseFloat(input.value))) {
                 input.value = parseFloat(input.value).toFixed(2);
@@ -872,11 +878,12 @@
             const tr = document.createElement('tr');
             tr.className = `item-row ${type}-row group relative h-7`;
 
+            // 修正悬浮操作菜单：使用绝对定位浮在表格外侧右右方(-82px)，增加白底阴影框，彻底解决遮挡变形 Bug
             const actionsHTML = `
-                <div class="absolute -right-[4.5rem] top-0 hidden group-hover:flex no-print gap-1 z-10">
-                    <button type="button" onclick="addRow(this, 'prod')" class="bg-blue-500 text-white px-1 h-5 flex items-center justify-center rounded-sm shadow text-[10px] hover:bg-blue-600">+产品</button>
-                    <button type="button" onclick="addRow(this, 'note')" class="bg-orange-500 text-white px-1 h-5 flex items-center justify-center rounded-sm shadow text-[10px] hover:bg-orange-600">+说明</button>
-                    <button type="button" onclick="removeRow(this)" class="bg-red-500 text-white px-1 h-5 flex items-center justify-center rounded-sm shadow text-[10px] hover:bg-red-600">删</button>
+                <div class="absolute -right-[82px] top-1/2 -translate-y-1/2 hidden group-hover:flex no-print gap-1 z-50 bg-white/95 p-1 rounded shadow-md border border-gray-200">
+                    <button type="button" onclick="addRow(this, 'prod')" title="添加产品行" class="bg-blue-600 hover:bg-blue-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shadow-sm">+产品</button>
+                    <button type="button" onclick="addRow(this, 'note')" title="添加说明行" class="bg-amber-600 hover:bg-amber-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shadow-sm">+说明</button>
+                    <button type="button" onclick="removeRow(this)" title="删除此行" class="bg-red-600 hover:bg-red-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shadow-sm">删</button>
                 </div>
             `;
 
