@@ -22,15 +22,17 @@
             padding: 15mm 15mm; 
             box-sizing: border-box;
             position: relative;
+            transition: padding 0.2s ease;
         }
         
-        /* 优化打印线宽：改为 1px 且使用深灰色(#666666)，解决导出PDF太粗太黑的问题，极具高级感 */
+        /* 优化打印线宽：改为 1px 且使用深灰色(#666666)，高级精细 */
         .box-table {
             border-collapse: collapse;
             width: 100%;
         }
         .box-table th, .box-table td {
             border: 1px solid #666666 !important; 
+            transition: padding 0.15s ease;
         }
 
         input, textarea {
@@ -44,7 +46,14 @@
         .realistic-stamp {
             mix-blend-mode: multiply;
             pointer-events: none;
+            transition: top 0.1s ease, right 0.1s ease;
         }
+
+        /* 滚动条美化 */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
         @media print {
             body { background: white; margin: 0; padding: 0; }
@@ -55,160 +64,228 @@
         }
     </style>
 </head>
-<body class="text-gray-900">
+<body class="text-gray-900 bg-gray-100">
 
-    <!-- 顶部操作栏 -->
-    <div class="no-print flex flex-wrap justify-center gap-3 py-3 bg-gray-800 sticky top-0 z-40 shadow-md w-full px-4">
-        <div class="flex bg-gray-700 rounded overflow-hidden shadow-sm">
-            <button onclick="switchCompany('sanheyi')" class="px-4 py-2 bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700 transition border-r border-indigo-800">
-                三合一 (专票)
+    <!-- 顶部固定操作栏 (高度 60px) -->
+    <div class="no-print fixed top-0 w-full h-[60px] bg-gray-800 z-50 shadow-md flex items-center justify-between px-6">
+        <div class="flex items-center gap-3">
+            <h1 class="text-white font-bold text-base tracking-widest mr-2">报价单生成系统</h1>
+            <div class="flex bg-gray-700 rounded overflow-hidden shadow-sm">
+                <button id="btn-company-sanheyi" onclick="switchCompany('sanheyi')" class="px-3 py-1.5 bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 transition border-r border-indigo-800">
+                    三合一 (专票)
+                </button>
+                <button id="btn-company-huixinfa" onclick="switchCompany('huixinfa')" class="px-3 py-1.5 bg-slate-600 text-white text-xs font-bold hover:bg-slate-500 transition">
+                    惠新发 (普票)
+                </button>
+            </div>
+            <button onclick="toggleSpacingPanel()" class="px-3 py-1.5 bg-teal-600 text-white text-xs font-bold rounded shadow-sm hover:bg-teal-700 transition flex items-center">
+                📐 间距/印章微调
             </button>
-            <button onclick="switchCompany('huixinfa')" class="px-4 py-2 bg-slate-600 text-white text-sm font-bold hover:bg-slate-500 transition">
-                惠新发 (普票)
+            <button onclick="openParseModal()" class="px-3 py-1.5 bg-fuchsia-600 text-white text-xs font-bold rounded shadow-sm hover:bg-fuchsia-700 transition flex items-center">
+                <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                识别需方资料
             </button>
         </div>
-        <button onclick="openParseModal()" class="px-4 py-2 bg-fuchsia-600 text-white text-sm font-bold rounded hover:bg-fuchsia-700 transition shadow-sm flex items-center">
-            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-            识别需方信息
-        </button>
-        <button onclick="window.print()" class="px-4 py-2 bg-green-600 text-white text-sm font-bold rounded hover:bg-green-700 transition shadow-sm ml-auto">
-            直接打印
-        </button>
-        <button onclick="downloadPDF()" id="pdf-btn" class="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded hover:bg-blue-700 transition shadow-sm">
-            下载 PDF
-        </button>
+        <div class="flex items-center gap-3">
+            <button onclick="manualSaveQuote()" class="px-4 py-1.5 bg-amber-600 text-white text-xs font-bold rounded shadow-sm hover:bg-amber-700 transition flex items-center">
+                <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+                保存报价
+            </button>
+            <button onclick="window.print()" class="px-4 py-1.5 bg-green-600 text-white text-xs font-bold rounded shadow-sm hover:bg-green-700 transition flex items-center">
+                直接打印
+            </button>
+            <button onclick="downloadPDF()" id="pdf-btn" class="px-4 py-1.5 bg-blue-600 text-white text-xs font-bold rounded shadow-sm hover:bg-blue-700 transition flex items-center">
+                下载 PDF
+            </button>
+        </div>
     </div>
 
-    <!-- 报价单主体 -->
-    <div id="quote-content" class="a4-paper flex flex-col bg-white">
+    <!-- 间距微调可折叠控制面板 -->
+    <div id="spacing-panel" class="no-print fixed top-[60px] left-[280px] right-0 bg-gray-700 text-white text-xs py-2 px-6 z-40 hidden shadow-xl flex flex-wrap items-center gap-6 border-t border-gray-600">
+        <div class="flex items-center gap-2">
+            <span class="font-bold text-teal-300">印章垂直位置(Y)：</span>
+            <input type="range" id="slider-stamp-y" min="-500" max="-100" value="-340" class="w-32 accent-teal-400" oninput="updateSpacingSettings()">
+            <span id="val-stamp-y" class="w-12 text-gray-300">-340px</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="font-bold text-teal-300">印章水平位置(X)：</span>
+            <input type="range" id="slider-stamp-x" min="2" max="30" value="8" class="w-32 accent-teal-400" oninput="updateSpacingSettings()">
+            <span id="val-stamp-x" class="w-8 text-gray-300">8%</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="font-bold text-teal-300">表格行高/间距：</span>
+            <input type="range" id="slider-row-height" min="1" max="10" value="3" class="w-28 accent-teal-400" oninput="updateSpacingSettings()">
+            <span id="val-row-height" class="w-8 text-gray-300">3px</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="font-bold text-teal-300">页面页边距：</span>
+            <input type="range" id="slider-page-padding" min="8" max="25" value="15" class="w-28 accent-teal-400" oninput="updateSpacingSettings()">
+            <span id="val-page-padding" class="w-10 text-gray-300">15mm</span>
+        </div>
+        <button onclick="resetSpacingSettings()" class="ml-auto px-2.5 py-1 bg-gray-600 hover:bg-gray-500 rounded text-gray-200 text-[11px]">恢复默认</button>
+    </div>
+
+    <!-- 左侧边栏 (客户库 + 历史报价) -->
+    <aside class="no-print fixed left-0 top-[60px] bottom-0 w-[280px] bg-white shadow-[4px_0_24px_rgba(0,0,0,0.04)] border-r border-gray-200 z-40 flex flex-col">
+        <div class="flex border-b border-gray-200 bg-gray-50 text-xs font-bold">
+            <button id="tab-clients-btn" onclick="switchSidebarTab('clients')" class="flex-1 py-3 text-center text-indigo-600 border-b-2 border-indigo-600 bg-white transition">
+                客户库 (<span id="history-count">0</span>)
+            </button>
+            <button id="tab-contracts-btn" onclick="switchSidebarTab('contracts')" class="flex-1 py-3 text-center text-gray-500 hover:text-indigo-600 transition border-b-2 border-transparent">
+                历史报价 (<span id="contract-count">0</span>)
+            </button>
+        </div>
         
-        <h1 class="text-3xl font-bold text-center tracking-[1em] mb-4">报 价 单</h1>
-
-        <!-- 日期与编号 -->
-        <div class="flex justify-between text-[13px] mb-2 font-bold">
-            <div class="flex items-end">
-                <span>日期：</span>
-                <input type="text" id="quote-date" class="border-b border-gray-500 w-36 focus:outline-none text-blue-800 text-center pb-0.5">
-            </div>
-            <div class="flex items-end">
-                <span>编号：</span>
-                <input type="text" id="quote-no" class="border-b border-gray-500 w-44 focus:outline-none text-blue-800 text-center pb-0.5">
+        <div class="p-3 border-b border-gray-100">
+            <div class="relative">
+                <input type="text" id="sidebar-search" oninput="handleSidebarSearch()" placeholder="搜索需方名称或报价编号..." class="w-full bg-gray-100 text-xs rounded-md pl-8 pr-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:bg-white transition">
+                <svg class="w-4 h-4 text-gray-400 absolute left-2.5 top-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
             </div>
         </div>
 
-        <!-- 核心表格 -->
-        <table class="box-table text-[12px] text-center w-full relative">
-            <thead>
-                <tr class="bg-gray-50 font-bold h-8">
-                    <th class="w-10">编号</th>
-                    <th class="">名称</th>
-                    <th class="w-[10%]">代号</th>
-                    <th class="w-[12%]">规格</th>
-                    <th class="w-[10%]">材质</th>
-                    <th class="w-14">数量</th>
-                    <th class="w-[12%] text-red-600 leading-tight" id="th-price">含税13%<br>单价</th>
-                    <th class="w-[12%]">合计</th>
-                    <th class="w-[8%]">备注</th>
-                </tr>
-            </thead>
+        <div id="sidebar-clients-view" class="flex-1 overflow-y-auto p-3 space-y-2 bg-gray-50/50"></div>
+        <div id="sidebar-contracts-view" class="flex-1 overflow-y-auto p-3 space-y-2 bg-gray-50/50 hidden"></div>
+
+        <div class="p-4 border-t border-gray-100 bg-white shadow-[0_-4px_10px_rgba(0,0,0,0.02)]">
+            <button onclick="openParseModal()" class="w-full py-2.5 bg-fuchsia-50 text-fuchsia-600 border border-fuchsia-200 rounded-lg text-xs font-bold hover:bg-fuchsia-600 hover:text-white transition shadow-sm flex justify-center items-center group">
+                <svg class="w-4 h-4 mr-1.5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                粘贴新需方资料
+            </button>
+        </div>
+    </aside>
+
+    <!-- 右侧报价单主区域 -->
+    <main class="ml-[280px] pt-[60px] pb-10 print:ml-0 print:pt-0 print:pb-0">
+        <div id="quote-content" class="a4-paper flex flex-col bg-white">
             
-            <tbody id="product-tbody">
-                <!-- 预生成行，JS会动态接管 -->
-            </tbody>
+            <h1 class="text-3xl font-bold text-center tracking-[1em] mb-4">报 价 单</h1>
 
-            <tbody class="text-left">
-                <!-- 固定加工说明行 -->
-                <tr class="h-7">
-                    <td class="text-center font-bold" id="bottom-note-index">13</td>
-                    <td colspan="8" class="px-2">
-                        <div class="flex items-center w-full">
-                            <span class="font-bold">注：</span>
-                            <input type="text" class="flex-1 focus:outline-none bg-transparent hover:bg-gray-50 focus:bg-yellow-50 transition px-1" placeholder="请在此输入补充说明 (可选)...">
-                        </div>
-                    </td>
-                </tr>
-                <!-- 合计行 -->
-                <tr class="h-8 font-bold">
-                    <td colspan="9" class="px-2">
-                        人民币合计：<span id="grand-total-cn" class="text-blue-800">零元整</span>
-                        <input type="text" id="grand-total-num" class="w-24 focus:outline-none text-blue-800 text-right ml-2" readonly tabindex="-1">
-                    </td>
-                </tr>
-            </tbody>
+            <!-- 日期与编号 -->
+            <div class="flex justify-between text-[13px] mb-2 font-bold">
+                <div class="flex items-end">
+                    <span>日期：</span>
+                    <input type="text" id="quote-date" class="border-b border-gray-500 w-36 focus:outline-none text-blue-800 text-center pb-0.5">
+                </div>
+                <div class="flex items-end">
+                    <span>编号：</span>
+                    <input type="text" id="quote-no" class="border-b border-gray-500 w-44 focus:outline-none text-blue-800 text-center pb-0.5">
+                </div>
+            </div>
 
-            <!-- 供需双方信息 -->
-            <tbody class="text-left text-[12px] leading-snug">
-                <tr>
-                    <td colspan="4" class="w-1/2 px-2 py-1 align-top relative z-0">
-                        <div class="flex"><span class="w-16">供方：</span><input type="text" id="partyA_name" class="flex-1 focus:outline-none font-bold"></div>
-                    </td>
-                    <td colspan="5" class="w-1/2 px-2 py-1 align-top">
-                        <div class="flex"><span class="w-16">需方：</span><input type="text" id="partyB_name" class="flex-1 focus:outline-none font-bold text-blue-800" placeholder="请填写或识别需方"></div>
-                    </td>
-                </tr>
-                <tr>
-                    <td colspan="4" class="px-2 py-1 align-top z-0 relative">
-                        <div class="flex"><span class="w-[4.5rem]">公司税号：</span><input type="text" id="partyA_tax" class="flex-1 focus:outline-none"></div>
-                    </td>
-                    <td colspan="5" class="px-2 py-1 align-top">
-                        <div class="flex"><span class="w-[4.5rem]">公司税号：</span><input type="text" id="partyB_tax" class="flex-1 focus:outline-none"></div>
-                    </td>
-                </tr>
-                <tr>
-                    <td colspan="4" class="px-2 py-1 align-top z-0 relative">
-                        <div class="flex"><span class="w-[4.5rem]">开户行：</span><input type="text" id="partyA_bank" class="flex-1 focus:outline-none"></div>
-                    </td>
-                    <td colspan="5" class="px-2 py-1 align-top">
-                        <div class="flex"><span class="w-[4.5rem]">开户行：</span><input type="text" id="partyB_bank" class="flex-1 focus:outline-none"></div>
-                    </td>
-                </tr>
-                <tr>
-                    <td colspan="4" class="px-2 py-1 align-top z-0 relative">
-                        <div class="flex"><span class="w-[4.5rem]">公司帐号：</span><input type="text" id="partyA_account" class="flex-1 focus:outline-none"></div>
-                    </td>
-                    <td colspan="5" class="px-2 py-1 align-top">
-                        <div class="flex"><span class="w-[4.5rem]">公司帐号：</span><input type="text" id="partyB_account" class="flex-1 focus:outline-none"></div>
-                    </td>
-                </tr>
-                <tr>
-                    <td colspan="4" class="px-2 py-1 align-top z-0 relative">
-                        <div class="flex"><span class="w-[4.5rem]">联系人：</span><input type="text" id="partyA_agent" class="flex-1 focus:outline-none"></div>
-                    </td>
-                    <td colspan="5" class="px-2 py-1 align-top">
-                        <div class="flex"><span class="w-[4.5rem]">联系人：</span><input type="text" id="partyB_agent" class="flex-1 focus:outline-none"></div>
-                    </td>
-                </tr>
-                <tr>
-                    <td colspan="4" class="px-2 py-1 align-top z-0 relative">
-                        <div class="flex items-start"><span class="w-[4.5rem] mt-[1px]">公司地址：</span><textarea id="partyA_address" rows="1" oninput="adjustTextareaHeight(this)" class="flex-1 focus:outline-none resize-none overflow-hidden p-0 bg-transparent"></textarea></div>
-                    </td>
-                    <td colspan="5" class="px-2 py-1 align-top">
-                        <div class="flex items-start"><span class="w-[4.5rem] mt-[1px]">公司地址：</span><textarea id="partyB_address" rows="1" oninput="adjustTextareaHeight(this)" class="flex-1 focus:outline-none resize-none overflow-hidden p-0 bg-transparent"></textarea></div>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
+            <!-- 核心报价表格 -->
+            <table class="box-table text-[12px] text-center w-full relative">
+                <thead>
+                    <tr class="bg-gray-50 font-bold h-8">
+                        <th class="w-10">编号</th>
+                        <th class="">名称</th>
+                        <th class="w-[10%]">代号</th>
+                        <th class="w-[12%]">规格</th>
+                        <th class="w-[10%]">材质</th>
+                        <th class="w-14">数量</th>
+                        <th class="w-[12%] text-red-600 leading-tight" id="th-price">含税13%<br>单价</th>
+                        <th class="w-[12%]">合计</th>
+                        <th class="w-[8%]">备注</th>
+                    </tr>
+                </thead>
+                
+                <tbody id="product-tbody">
+                    <!-- JS 动态增减行 -->
+                </tbody>
 
-        <!-- 公章区域：调整 top 值，让其悬浮盖在产品明细表格的右下方(即箭头指定位置) -->
-        <div class="relative w-full pointer-events-none">
-            <img id="partyA_seal" src="./shy.png" class="realistic-stamp absolute right-[8%] -top-[340px] w-[170px] h-[170px] opacity-95 z-20" alt="公章" onerror="this.style.display='none'">
+                <tbody class="text-left">
+                    <!-- 固定补充说明行 -->
+                    <tr class="h-7">
+                        <td class="text-center font-bold" id="bottom-note-index">13</td>
+                        <td colspan="8" class="px-2">
+                            <div class="flex items-center w-full">
+                                <span class="font-bold">注：</span>
+                                <input type="text" id="bottom-note-text" class="flex-1 focus:outline-none bg-transparent hover:bg-gray-50 focus:bg-yellow-50 transition px-1" placeholder="请在此输入补充说明 (可选)...">
+                            </div>
+                        </td>
+                    </tr>
+                    <!-- 人民币合计行 -->
+                    <tr class="h-8 font-bold">
+                        <td colspan="9" class="px-2">
+                            人民币合计：<span id="grand-total-cn" class="text-blue-800">零元整</span>
+                            <input type="text" id="grand-total-num" class="w-32 focus:outline-none text-blue-800 text-right ml-2" readonly tabindex="-1">
+                        </td>
+                    </tr>
+                </tbody>
+
+                <!-- 供需双方信息 -->
+                <tbody class="text-left text-[12px] leading-snug">
+                    <tr>
+                        <td colspan="4" class="w-1/2 px-2 py-1 align-top relative z-0">
+                            <div class="flex"><span class="w-16">供方：</span><input type="text" id="partyA_name" class="flex-1 focus:outline-none font-bold"></div>
+                        </td>
+                        <td colspan="5" class="w-1/2 px-2 py-1 align-top">
+                            <div class="flex"><span class="w-16">需方：</span><input type="text" id="partyB_name" class="flex-1 focus:outline-none font-bold text-blue-800" placeholder="请填写或在左侧选择需方"></div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="4" class="px-2 py-1 align-top z-0 relative">
+                            <div class="flex"><span class="w-[4.5rem]">公司税号：</span><input type="text" id="partyA_tax" class="flex-1 focus:outline-none"></div>
+                        </td>
+                        <td colspan="5" class="px-2 py-1 align-top">
+                            <div class="flex"><span class="w-[4.5rem]">公司税号：</span><input type="text" id="partyB_tax" class="flex-1 focus:outline-none"></div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="4" class="px-2 py-1 align-top z-0 relative">
+                            <div class="flex"><span class="w-[4.5rem]">开户行：</span><input type="text" id="partyA_bank" class="flex-1 focus:outline-none"></div>
+                        </td>
+                        <td colspan="5" class="px-2 py-1 align-top">
+                            <div class="flex"><span class="w-[4.5rem]">开户行：</span><input type="text" id="partyB_bank" class="flex-1 focus:outline-none"></div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="4" class="px-2 py-1 align-top z-0 relative">
+                            <div class="flex"><span class="w-[4.5rem]">公司帐号：</span><input type="text" id="partyA_account" class="flex-1 focus:outline-none"></div>
+                        </td>
+                        <td colspan="5" class="px-2 py-1 align-top">
+                            <div class="flex"><span class="w-[4.5rem]">公司帐号：</span><input type="text" id="partyB_account" class="flex-1 focus:outline-none"></div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="4" class="px-2 py-1 align-top z-0 relative">
+                            <div class="flex"><span class="w-[4.5rem]">联系人：</span><input type="text" id="partyA_agent" class="flex-1 focus:outline-none"></div>
+                        </td>
+                        <td colspan="5" class="px-2 py-1 align-top">
+                            <div class="flex"><span class="w-[4.5rem]">联系人：</span><input type="text" id="partyB_agent" class="flex-1 focus:outline-none"></div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="4" class="px-2 py-1 align-top z-0 relative">
+                            <div class="flex items-start"><span class="w-[4.5rem] mt-[1px]">公司地址：</span><textarea id="partyA_address" rows="1" oninput="adjustTextareaHeight(this)" class="flex-1 focus:outline-none resize-none overflow-hidden p-0 bg-transparent"></textarea></div>
+                        </td>
+                        <td colspan="5" class="px-2 py-1 align-top">
+                            <div class="flex items-start"><span class="w-[4.5rem] mt-[1px]">公司地址：</span><textarea id="partyB_address" rows="1" oninput="adjustTextareaHeight(this)" class="flex-1 focus:outline-none resize-none overflow-hidden p-0 bg-transparent"></textarea></div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- 印章图层：支持通过微调面板调节 top 和 right 参数 -->
+            <div class="relative w-full pointer-events-none">
+                <img id="partyA_seal" src="./shy.png" class="realistic-stamp absolute w-[170px] h-[170px] opacity-95 z-20" style="right: 8%; top: -340px;" alt="公章" onerror="this.style.display='none'">
+            </div>
+
         </div>
-
-    </div>
+    </main>
 
     <!-- 弹窗：智能识别需方 -->
-    <div id="parse-modal" class="fixed inset-0 z-50 bg-black/60 hidden items-center justify-center no-print">
+    <div id="parse-modal" class="fixed inset-0 z-50 bg-black/60 hidden items-center justify-center no-print backdrop-blur-sm">
         <div class="bg-white rounded-xl shadow-2xl w-[90%] max-w-lg flex flex-col">
             <div class="px-5 py-4 border-b flex justify-between items-center bg-gray-50 rounded-t-xl">
-                <h3 class="text-base font-bold text-gray-800">智能识别需方(乙方)信息</h3>
+                <h3 class="text-base font-bold text-gray-800">智能识别需方(乙方)资料</h3>
                 <button onclick="closeParseModal()" class="text-gray-400 hover:text-red-500"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
             </div>
             <div class="p-4">
-                <textarea id="parse-textarea" rows="6" class="w-full border border-gray-300 rounded p-3 text-sm focus:outline-none focus:border-fuchsia-500" placeholder="请粘贴客户开票资料..."></textarea>
+                <textarea id="parse-textarea" rows="6" class="w-full border border-gray-300 rounded p-3 text-xs focus:outline-none focus:border-fuchsia-500" placeholder="请在此粘贴客户开票资料..."></textarea>
             </div>
             <div class="px-4 py-3 border-t bg-gray-50 rounded-b-xl flex justify-end gap-3">
-                <button onclick="closeParseModal()" class="px-4 py-2 border rounded-lg text-gray-600 bg-white hover:bg-gray-100 text-sm">取消</button>
-                <button onclick="executeParse()" class="px-4 py-2 bg-fuchsia-600 text-white rounded-lg hover:bg-fuchsia-700 text-sm font-bold shadow-md">一键识别</button>
+                <button onclick="closeParseModal()" class="px-4 py-2 border rounded-lg text-gray-600 bg-white hover:bg-gray-100 text-xs">取消</button>
+                <button onclick="executeParse()" class="px-4 py-2 bg-fuchsia-600 text-white rounded-lg hover:bg-fuchsia-700 text-xs font-bold shadow-md">一键识别填入</button>
             </div>
         </div>
     </div>
@@ -219,7 +296,9 @@
             el.style.height = el.scrollHeight + 'px'; 
         }
 
-        // ================= 1. 供方及发票规则切换 =================
+        let currentCompanyType = 'sanheyi';
+
+        // ================= 1. 供方配置 =================
         const companyData = {
             sanheyi: {
                 name: '深圳市三合一五金有限公司',
@@ -228,7 +307,7 @@
                 account: '4000020609201024351',
                 agent: '蔡国贵 13824361177',
                 address: '深圳市龙岗区高科大道56号万达科技园1号厂房',
-                priceHeaderHtml: '含13%税单价',
+                priceHeaderHtml: '含13%税<br>单价',
                 showSeal: true,
                 sealSrc: './shy.png'
             },
@@ -246,7 +325,19 @@
         };
 
         function switchCompany(type) {
+            currentCompanyType = type;
             const data = companyData[type];
+
+            const btnSanheyi = document.getElementById('btn-company-sanheyi');
+            const btnHuixinfa = document.getElementById('btn-company-huixinfa');
+            if (type === 'sanheyi') {
+                btnSanheyi.className = 'px-3 py-1.5 bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 transition border-r border-indigo-800';
+                btnHuixinfa.className = 'px-3 py-1.5 bg-slate-600 text-white text-xs font-bold hover:bg-slate-500 transition';
+            } else {
+                btnHuixinfa.className = 'px-3 py-1.5 bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 transition';
+                btnSanheyi.className = 'px-3 py-1.5 bg-slate-600 text-white text-xs font-bold hover:bg-slate-500 transition border-r border-indigo-800';
+            }
+
             document.getElementById('partyA_name').value = data.name;
             document.getElementById('partyA_tax').value = data.tax;
             document.getElementById('partyA_bank').value = data.bank;
@@ -259,7 +350,6 @@
             
             document.getElementById('th-price').innerHTML = data.priceHeaderHtml;
             
-            // 智能切换印章
             const sealImg = document.getElementById('partyA_seal');
             if (data.showSeal) {
                 sealImg.src = data.sealSrc;
@@ -269,10 +359,48 @@
             }
         }
 
+        // ================= 2. 间距与印章移动微调面板 =================
+        function toggleSpacingPanel() {
+            const panel = document.getElementById('spacing-panel');
+            panel.classList.toggle('hidden');
+        }
+
+        function updateSpacingSettings() {
+            const stampY = document.getElementById('slider-stamp-y').value;
+            const stampX = document.getElementById('slider-stamp-x').value;
+            const rowHeight = document.getElementById('slider-row-height').value;
+            const pagePadding = document.getElementById('slider-page-padding').value;
+
+            document.getElementById('val-stamp-y').innerText = `${stampY}px`;
+            document.getElementById('val-stamp-x').innerText = `${stampX}%`;
+            document.getElementById('val-row-height').innerText = `${rowHeight}px`;
+            document.getElementById('val-page-padding').innerText = `${pagePadding}mm`;
+
+            // 实时应用到样式
+            const sealImg = document.getElementById('partyA_seal');
+            sealImg.style.top = `${stampY}px`;
+            sealImg.style.right = `${stampX}%`;
+
+            const a4Paper = document.getElementById('quote-content');
+            a4Paper.style.padding = `${pagePadding}mm`;
+
+            document.querySelectorAll('.box-table td, .box-table th').forEach(cell => {
+                cell.style.paddingTop = `${rowHeight}px`;
+                cell.style.paddingBottom = `${rowHeight}px`;
+            });
+        }
+
+        function resetSpacingSettings() {
+            document.getElementById('slider-stamp-y').value = -340;
+            document.getElementById('slider-stamp-x').value = 8;
+            document.getElementById('slider-row-height').value = 3;
+            document.getElementById('slider-page-padding').value = 15;
+            updateSpacingSettings();
+        }
+
         window.onload = function() {
             switchCompany('sanheyi'); 
             
-            // 生成日期和编号
             const now = new Date();
             const year = now.getFullYear();
             const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -283,14 +411,319 @@
             document.getElementById('quote-date').value = `${year}年${month}月${day}日`;
             document.getElementById('quote-no').value = `BJ${year}${month}${day}${hour}${minute}`;
 
-            // 初始化生成 12 行空白表格
+            // 初始化生成 12 行空白明细
             for(let i=0; i<12; i++){
                 insertRowHTML(document.getElementById('product-tbody'), 'prod');
             }
             updateRowIndices();
+
+            renderSavedClients();
+            renderSavedContracts();
         };
 
-        // ================= 2. 需方智能识别 =================
+        // ================= 3. 侧边栏 Tab 控制与检索 =================
+        let activeTab = 'clients';
+
+        function switchSidebarTab(tab) {
+            activeTab = tab;
+            const clientsBtn = document.getElementById('tab-clients-btn');
+            const contractsBtn = document.getElementById('tab-contracts-btn');
+            const clientsView = document.getElementById('sidebar-clients-view');
+            const contractsView = document.getElementById('sidebar-contracts-view');
+
+            if (tab === 'clients') {
+                clientsBtn.className = 'flex-1 py-3 text-center text-indigo-600 border-b-2 border-indigo-600 bg-white transition';
+                contractsBtn.className = 'flex-1 py-3 text-center text-gray-500 hover:text-indigo-600 transition border-b-2 border-transparent';
+                clientsView.classList.remove('hidden');
+                contractsView.classList.add('hidden');
+            } else {
+                contractsBtn.className = 'flex-1 py-3 text-center text-indigo-600 border-b-2 border-indigo-600 bg-white transition';
+                clientsBtn.className = 'flex-1 py-3 text-center text-gray-500 hover:text-indigo-600 transition border-b-2 border-transparent';
+                contractsView.classList.remove('hidden');
+                clientsView.classList.add('hidden');
+            }
+            handleSidebarSearch();
+        }
+
+        function handleSidebarSearch() {
+            const query = document.getElementById('sidebar-search').value.trim();
+            if (activeTab === 'clients') {
+                renderSavedClients(query);
+            } else {
+                renderSavedContracts(query);
+            }
+        }
+
+        // ================= 4. 需方客户库管理 =================
+        let savedClients = JSON.parse(localStorage.getItem('contract_clients') || '{}');
+
+        function renderSavedClients(keyword = '') {
+            const container = document.getElementById('sidebar-clients-view');
+            const countBadge = document.getElementById('history-count');
+            container.innerHTML = '';
+            
+            let names = Object.keys(savedClients).reverse();
+            countBadge.innerText = names.length;
+
+            if (keyword) {
+                names = names.filter(n => n.toLowerCase().includes(keyword.toLowerCase()));
+            }
+
+            if(names.length === 0) {
+                container.innerHTML = `<div class="flex flex-col items-center justify-center h-40 text-gray-400"><p class="text-xs">暂无符合的客户</p></div>`;
+                return;
+            }
+            
+            names.forEach(name => {
+                const data = savedClients[name];
+                const card = document.createElement('div');
+                card.className = 'group relative p-3 bg-white border border-gray-100 rounded-lg cursor-pointer hover:-translate-y-0.5 hover:shadow-md hover:border-indigo-200 transition-all duration-200';
+                card.onclick = () => fillClient(name);
+
+                const title = document.createElement('h4');
+                title.className = 'text-[13px] font-bold text-gray-800 pr-7 truncate';
+                title.innerText = name;
+
+                const sub = document.createElement('p');
+                sub.className = 'text-[11px] text-gray-500 mt-1 truncate';
+                sub.innerText = data.tax ? `税号: ${data.tax}` : (data.agent ? `联系人: ${data.agent}` : '暂无更多信息');
+
+                const delBtn = document.createElement('button');
+                delBtn.className = 'absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity rounded-md hover:bg-red-50 focus:outline-none';
+                delBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>`;
+                delBtn.onclick = (e) => {
+                    e.stopPropagation(); 
+                    if(confirm(`确定要删除历史客户【${name}】吗？`)) {
+                        delete savedClients[name];
+                        localStorage.setItem('contract_clients', JSON.stringify(savedClients));
+                        renderSavedClients(document.getElementById('sidebar-search').value);
+                    }
+                };
+
+                card.appendChild(title);
+                card.appendChild(sub);
+                card.appendChild(delBtn);
+                container.appendChild(card);
+            });
+        }
+
+        function saveCurrentClient() {
+            const name = document.getElementById('partyB_name').value.trim();
+            if(!name) return;
+            const client = {
+                name: name,
+                tax: document.getElementById('partyB_tax').value.trim(),
+                bank: document.getElementById('partyB_bank').value.trim(),
+                account: document.getElementById('partyB_account').value.trim(),
+                address: document.getElementById('partyB_address').value.trim(),
+                agent: document.getElementById('partyB_agent').value.trim()
+            };
+            savedClients[name] = client;
+            localStorage.setItem('contract_clients', JSON.stringify(savedClients));
+            renderSavedClients();
+        }
+
+        function fillClient(name) {
+            const data = savedClients[name];
+            if(!data) return;
+            document.getElementById('partyB_name').value = data.name || '';
+            document.getElementById('partyB_tax').value = data.tax || '';
+            document.getElementById('partyB_bank').value = data.bank || '';
+            document.getElementById('partyB_account').value = data.account || '';
+            
+            const addrEl = document.getElementById('partyB_address');
+            addrEl.value = data.address || '';
+            adjustTextareaHeight(addrEl);
+
+            document.getElementById('partyB_agent').value = data.agent || '';
+        }
+
+        // ================= 5. 历史报价单保存与加载 =================
+        let savedQuotes = JSON.parse(localStorage.getItem('quote_records') || '{}');
+
+        function saveCurrentQuote() {
+            saveCurrentClient();
+
+            const quoteNo = document.getElementById('quote-no').value.trim();
+            if (!quoteNo) return;
+
+            const items = [];
+            document.querySelectorAll('#product-tbody .item-row').forEach(row => {
+                if (row.classList.contains('prod-row')) {
+                    const inputs = row.querySelectorAll('input');
+                    const name = inputs[0].value.trim();
+                    const qty = inputs[4].value;
+                    const price = inputs[5].value;
+                    if (name || qty || price) {
+                        items.push({
+                            type: 'prod',
+                            name: inputs[0].value,
+                            code: inputs[1].value,
+                            spec: inputs[2].value,
+                            material: inputs[3].value,
+                            qty: inputs[4].value,
+                            price: inputs[5].value ? parseFloat(inputs[5].value).toFixed(2) : '',
+                            total: inputs[6].value,
+                            remark: inputs[7].value
+                        });
+                    }
+                } else if (row.classList.contains('note-row')) {
+                    const noteInp = row.querySelector('.note-input');
+                    if (noteInp && noteInp.value.trim()) {
+                        items.push({ type: 'note', content: noteInp.value });
+                    }
+                }
+            });
+
+            const quoteRecord = {
+                quoteNo: quoteNo,
+                companyType: currentCompanyType,
+                quoteDate: document.getElementById('quote-date').value,
+                bottomNote: document.getElementById('bottom-note-text').value,
+                partyB: {
+                    name: document.getElementById('partyB_name').value,
+                    tax: document.getElementById('partyB_tax').value,
+                    bank: document.getElementById('partyB_bank').value,
+                    account: document.getElementById('partyB_account').value,
+                    address: document.getElementById('partyB_address').value,
+                    agent: document.getElementById('partyB_agent').value,
+                },
+                spacing: {
+                    stampY: document.getElementById('slider-stamp-y').value,
+                    stampX: document.getElementById('slider-stamp-x').value,
+                    rowHeight: document.getElementById('slider-row-height').value,
+                    pagePadding: document.getElementById('slider-page-padding').value,
+                },
+                items: items,
+                updatedAt: new Date().toLocaleString('zh-CN', { hour12: false })
+            };
+
+            savedQuotes[quoteNo] = quoteRecord;
+            localStorage.setItem('quote_records', JSON.stringify(savedQuotes));
+            renderSavedContracts();
+        }
+
+        function manualSaveQuote() {
+            saveCurrentQuote();
+            alert('✅ 当前报价单已保存在左侧【历史报价】中！点击随时可加载修改。');
+        }
+
+        function renderSavedContracts(keyword = '') {
+            const container = document.getElementById('sidebar-contracts-view');
+            const countBadge = document.getElementById('contract-count');
+            container.innerHTML = '';
+
+            let nos = Object.keys(savedQuotes).reverse();
+            countBadge.innerText = nos.length;
+
+            if (keyword) {
+                nos = nos.filter(no => {
+                    const c = savedQuotes[no];
+                    return no.includes(keyword) || (c.partyB && c.partyB.name.toLowerCase().includes(keyword.toLowerCase()));
+                });
+            }
+
+            if (nos.length === 0) {
+                container.innerHTML = `<div class="flex flex-col items-center justify-center h-40 text-gray-400"><p class="text-xs">暂无符合的历史报价</p></div>`;
+                return;
+            }
+
+            nos.forEach(no => {
+                const quote = savedQuotes[no];
+                const card = document.createElement('div');
+                card.className = 'group relative p-3 bg-white border border-gray-100 rounded-lg cursor-pointer hover:-translate-y-0.5 hover:shadow-md hover:border-indigo-200 transition-all duration-200';
+                card.onclick = () => loadQuote(no);
+
+                const title = document.createElement('h4');
+                title.className = 'text-[12px] font-bold text-gray-800 pr-7 truncate';
+                title.innerText = `编号: ${no}`;
+
+                const clientName = document.createElement('p');
+                clientName.className = 'text-[11px] text-indigo-900 font-semibold mt-0.5 truncate';
+                clientName.innerText = quote.partyB?.name || '未知需方';
+
+                const sub = document.createElement('p');
+                sub.className = 'text-[10px] text-gray-400 mt-1 truncate';
+                sub.innerText = `保存时间: ${quote.updatedAt || ''}`;
+
+                const delBtn = document.createElement('button');
+                delBtn.className = 'absolute right-2 top-2 p-1.5 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity rounded-md hover:bg-red-50 focus:outline-none';
+                delBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>`;
+                delBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    if(confirm(`确定要删除报价记录【${no}】吗？`)) {
+                        delete savedQuotes[no];
+                        localStorage.setItem('quote_records', JSON.stringify(savedQuotes));
+                        renderSavedContracts(document.getElementById('sidebar-search').value);
+                    }
+                };
+
+                card.appendChild(title);
+                card.appendChild(clientName);
+                card.appendChild(sub);
+                card.appendChild(delBtn);
+                container.appendChild(card);
+            });
+        }
+
+        function loadQuote(quoteNo) {
+            const quote = savedQuotes[quoteNo];
+            if (!quote) return;
+
+            switchCompany(quote.companyType || 'sanheyi');
+            document.getElementById('quote-no').value = quote.quoteNo || '';
+            document.getElementById('quote-date').value = quote.quoteDate || '';
+            document.getElementById('bottom-note-text').value = quote.bottomNote || '';
+
+            if (quote.partyB) {
+                document.getElementById('partyB_name').value = quote.partyB.name || '';
+                document.getElementById('partyB_tax').value = quote.partyB.tax || '';
+                document.getElementById('partyB_bank').value = quote.partyB.bank || '';
+                document.getElementById('partyB_account').value = quote.partyB.account || '';
+                const addrEl = document.getElementById('partyB_address');
+                addrEl.value = quote.partyB.address || '';
+                adjustTextareaHeight(addrEl);
+                document.getElementById('partyB_agent').value = quote.partyB.agent || '';
+            }
+
+            if (quote.spacing) {
+                document.getElementById('slider-stamp-y').value = quote.spacing.stampY || -340;
+                document.getElementById('slider-stamp-x').value = quote.spacing.stampX || 8;
+                document.getElementById('slider-row-height').value = quote.spacing.rowHeight || 3;
+                document.getElementById('slider-page-padding').value = quote.spacing.pagePadding || 15;
+                updateSpacingSettings();
+            }
+
+            const tbody = document.getElementById('product-tbody');
+            tbody.innerHTML = '';
+
+            const items = quote.items && quote.items.length > 0 ? quote.items : [];
+            items.forEach(item => {
+                if (item.type === 'note') {
+                    insertRowHTML(tbody, 'note');
+                    const lastRow = tbody.lastElementChild;
+                    lastRow.querySelector('.note-input').value = item.content || '';
+                } else {
+                    insertRowHTML(tbody, 'prod');
+                    const lastRow = tbody.lastElementChild;
+                    const inputs = lastRow.querySelectorAll('input');
+                    inputs[0].value = item.name || '';
+                    inputs[1].value = item.code || '';
+                    inputs[2].value = item.spec || '';
+                    inputs[3].value = item.material || '';
+                    inputs[4].value = item.qty || '';
+                    inputs[5].value = item.price ? parseFloat(item.price).toFixed(2) : '';
+                    inputs[6].value = item.total || '';
+                    inputs[7].value = item.remark || '';
+                }
+            });
+
+            calcTotal();
+            updateRowIndices();
+            checkBlankRows();
+        }
+
+        // ================= 6. 智能识别需方 =================
         function openParseModal() { document.getElementById('parse-modal').classList.remove('hidden'); document.getElementById('parse-modal').classList.add('flex'); }
         function closeParseModal() { document.getElementById('parse-modal').classList.add('hidden'); document.getElementById('parse-modal').classList.remove('flex'); }
         
@@ -314,20 +747,29 @@
                 bAddrEl.value = addressMatch[1].trim();
                 adjustTextareaHeight(bAddrEl);
             }
-            // 将联系人和电话合并填入
             let agentStr = "";
             if(agentMatch) agentStr += agentMatch[1].trim() + " ";
             if(phoneMatch) agentStr += phoneMatch[1].trim();
             document.getElementById('partyB_agent').value = agentStr.trim();
             
+            saveCurrentClient();
+            document.getElementById('parse-textarea').value = '';
             closeParseModal();
         }
 
-        // ================= 3. 表格生成与序号管理 =================
+        // ================= 7. 表格增减与智能填充 =================
+        function formatDecimal(input) {
+            if (input.value !== '' && !isNaN(parseFloat(input.value))) {
+                input.value = parseFloat(input.value).toFixed(2);
+            }
+        }
+
         function insertRowHTML(parent, type, insertAfterNode = null) {
             const tr = document.createElement('tr');
             tr.className = `item-row ${type}-row group relative h-7`;
             
+            const rowHeight = document.getElementById('slider-row-height').value || 3;
+
             const actionsHTML = `
                 <div class="absolute -right-[4.5rem] top-0 hidden group-hover:flex no-print gap-1 z-10">
                     <button type="button" onclick="addRow(this, 'prod')" class="bg-blue-500 text-white px-1 h-5 flex items-center justify-center rounded-sm shadow text-[10px] hover:bg-blue-600">+产品</button>
@@ -338,25 +780,25 @@
 
             if (type === 'prod') {
                 tr.innerHTML = `
-                    <td class="p-0 row-index bg-gray-50 text-gray-500 font-medium"></td>
-                    <td class="p-0"><input type="text" class="name-input w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-50"></td>
-                    <td class="p-0"><input type="text" class="w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-50"></td>
-                    <td class="p-0"><input type="text" class="w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-50"></td>
-                    <td class="p-0"><input type="text" class="w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-50"></td>
-                    <td class="p-0"><input type="number" class="qty w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-50" oninput="calcTotal()"></td>
-                    <td class="p-0"><input type="number" class="price w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-50" oninput="calcTotal()"></td>
-                    <td class="p-0"><input type="text" class="row-total w-full h-full px-1 text-center font-bold text-gray-700 bg-gray-50 focus:outline-none" readonly tabindex="-1"></td>
-                    <td class="p-0 relative">
+                    <td class="p-0 row-index bg-gray-50 text-gray-500 font-medium" style="padding-top:${rowHeight}px; padding-bottom:${rowHeight}px;"></td>
+                    <td class="p-0" style="padding-top:${rowHeight}px; padding-bottom:${rowHeight}px;"><input type="text" class="name-input w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-50"></td>
+                    <td class="p-0" style="padding-top:${rowHeight}px; padding-bottom:${rowHeight}px;"><input type="text" class="w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-50"></td>
+                    <td class="p-0" style="padding-top:${rowHeight}px; padding-bottom:${rowHeight}px;"><input type="text" class="w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-50"></td>
+                    <td class="p-0" style="padding-top:${rowHeight}px; padding-bottom:${rowHeight}px;"><input type="text" class="w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-50"></td>
+                    <td class="p-0" style="padding-top:${rowHeight}px; padding-bottom:${rowHeight}px;"><input type="number" class="qty w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-50" oninput="calcTotal()"></td>
+                    <td class="p-0" style="padding-top:${rowHeight}px; padding-bottom:${rowHeight}px;"><input type="number" step="0.01" class="price w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-50" oninput="calcTotal()" onblur="formatDecimal(this)"></td>
+                    <td class="p-0" style="padding-top:${rowHeight}px; padding-bottom:${rowHeight}px;"><input type="text" class="row-total w-full h-full px-1 text-center font-bold text-gray-700 bg-gray-50 focus:outline-none" readonly tabindex="-1"></td>
+                    <td class="p-0 relative" style="padding-top:${rowHeight}px; padding-bottom:${rowHeight}px;">
                         <input type="text" class="w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-50">
                         ${actionsHTML}
                     </td>
                 `;
             } else {
                 tr.innerHTML = `
-                    <td class="p-0 row-index bg-gray-50 text-gray-500 font-medium"></td>
-                    <td class="p-0" colspan="6"><input type="text" class="note-input w-full h-full px-2 text-center text-blue-800 focus:outline-none focus:bg-yellow-50" placeholder="在此输入合并说明(如:含模具费XXX元)"></td>
-                    <td class="p-0 bg-gray-50"></td>
-                    <td class="p-0 relative bg-gray-50">
+                    <td class="p-0 row-index bg-gray-50 text-gray-500 font-medium" style="padding-top:${rowHeight}px; padding-bottom:${rowHeight}px;"></td>
+                    <td class="p-0" colspan="6" style="padding-top:${rowHeight}px; padding-bottom:${rowHeight}px;"><input type="text" class="note-input w-full h-full px-2 text-center text-blue-800 focus:outline-none focus:bg-yellow-50" placeholder="在此输入合并说明(如:含模具费XXX元)"></td>
+                    <td class="p-0 bg-gray-50" style="padding-top:${rowHeight}px; padding-bottom:${rowHeight}px;"></td>
+                    <td class="p-0 relative bg-gray-50" style="padding-top:${rowHeight}px; padding-bottom:${rowHeight}px;">
                         ${actionsHTML}
                     </td>
                 `;
@@ -399,7 +841,6 @@
             checkBlankRows();
         }
 
-        // ================= 4. 智能“以下空白”探测 =================
         function checkBlankRows() {
             const rows = Array.from(document.querySelectorAll('#product-tbody .item-row'));
             let lastContentIndex = -1;
@@ -446,7 +887,7 @@
         tbody.addEventListener('focusin', checkBlankRows);
         tbody.addEventListener('focusout', () => setTimeout(checkBlankRows, 10));
 
-        // ================= 5. 自动计算金额 =================
+        // ================= 8. 自动金额推算 =================
         function calcTotal() {
             let grandTotal = 0;
             document.querySelectorAll('.prod-row').forEach(row => {
@@ -482,8 +923,10 @@
             return head + s.replace(/(零.)*零元/, '元').replace(/(零.)+/g, '零').replace(/^整$/, '零元整');
         }
 
-        // ================= 6. 导出 PDF =================
+        // ================= 9. 导出 PDF =================
         function downloadPDF() {
+            saveCurrentQuote();
+
             window.scrollTo(0, 0); 
             const element = document.getElementById('quote-content');
             
