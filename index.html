@@ -9,18 +9,19 @@
     <style>
         body {
             background-color: #f3f4f6;
-            font-family: "SimSun", "Songti SC", "Times New Roman", serif;
+            font-family: "SimSun", "Songti SC", "STSong", "Times New Roman", serif;
             margin: 0;
             padding: 0;
             user-select: none;
+            overflow-x: hidden;
         }
         .a4-paper {
             width: 210mm;
-            min-height: 280mm; 
+            min-height: 297mm; 
             margin: 20px auto;
             background-color: #ffffff;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-            padding: 15mm 15mm; 
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            padding: 12mm 15mm; 
             box-sizing: border-box;
             position: relative;
         }
@@ -32,33 +33,36 @@
             table-layout: fixed;
         }
         .box-table th, .box-table td {
-            border: 1px solid #666666 !important; 
+            border: 1px solid #4b5563 !important; 
             position: relative;
-            overflow: hidden;
             word-break: break-all;
         }
 
-        /* 最后一列允许悬浮菜单溢出，防止按钮被截断遮挡单元格 */
         .box-table td:last-child {
             overflow: visible !important;
         }
 
         input, textarea {
             background-color: transparent;
-            color: #000;
+            color: #111827;
             user-select: text;
         }
         input[type=number]::-webkit-inner-spin-button, 
         input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         input[type=number] { -moz-appearance: textfield; }
         
-        /* 公章样式：默认盖在供方区域，鼠标可按住拖拽 */
+        /* 公章样式：鼠标可按住拖拽 */
         .realistic-stamp {
             mix-blend-mode: multiply;
             cursor: move;
             user-select: none;
             position: absolute;
             z-index: 30;
+            transition: transform 0.05s ease;
+        }
+        .realistic-stamp:active {
+            opacity: 0.85;
+            cursor: grabbing;
         }
 
         /* Excel 风格列宽/行高拖拽手柄 */
@@ -88,8 +92,7 @@
             background-color: #3b82f6;
         }
 
-        /* 滚动条美化 */
-        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
@@ -105,10 +108,10 @@
 </head>
 <body class="text-gray-900 bg-gray-100">
 
-    <!-- 顶部固定操作栏 (高度 60px) -->
+    <!-- 顶部固定操作栏 -->
     <div class="no-print fixed top-0 w-full h-[60px] bg-gray-800 z-50 shadow-md flex items-center justify-between px-6">
         <div class="flex items-center gap-3">
-            <h1 class="text-white font-bold text-base tracking-widest mr-2">报价单生成系统</h1>
+            <h1 class="text-white font-bold text-base tracking-wider mr-2">报价单管理系统</h1>
             <div class="flex bg-gray-700 rounded overflow-hidden shadow-sm">
                 <button id="btn-company-sanheyi" onclick="switchCompany('sanheyi')" class="px-3 py-1.5 bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 transition border-r border-indigo-800">
                     三合一 (专票)
@@ -118,18 +121,21 @@
                 </button>
             </div>
             <span class="text-xs text-amber-300 bg-amber-950/60 px-2.5 py-1 rounded border border-amber-700/50 flex items-center">
-                🔒 公章默认在供方侧，可拖拽调位；边框可拉拽调列宽
+                💡 公章可自由拖拽；表格线可拉动微调宽高
             </span>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2.5">
+            <button onclick="createNewQuote()" class="px-3 py-1.5 bg-gray-700 text-gray-200 text-xs font-bold rounded shadow-sm hover:bg-gray-600 transition flex items-center">
+                新建清空
+            </button>
             <button onclick="openParseModal()" class="px-3 py-1.5 bg-fuchsia-600 text-white text-xs font-bold rounded shadow-sm hover:bg-fuchsia-700 transition flex items-center">
                 <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                 识别需方资料
             </button>
-            <button onclick="manualSaveQuote()" class="px-4 py-1.5 bg-amber-600 text-white text-xs font-bold rounded shadow-sm hover:bg-amber-700 transition flex items-center">
+            <button onclick="manualSaveQuote()" class="px-3.5 py-1.5 bg-amber-600 text-white text-xs font-bold rounded shadow-sm hover:bg-amber-700 transition flex items-center">
                 保存报价
             </button>
-            <button onclick="window.print()" class="px-4 py-1.5 bg-green-600 text-white text-xs font-bold rounded shadow-sm hover:bg-green-700 transition flex items-center">
+            <button onclick="window.print()" class="px-3.5 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded shadow-sm hover:bg-emerald-700 transition flex items-center">
                 直接打印
             </button>
             <button onclick="downloadPDF()" id="pdf-btn" class="px-4 py-1.5 bg-blue-600 text-white text-xs font-bold rounded shadow-sm hover:bg-blue-700 transition flex items-center">
@@ -151,16 +157,16 @@
         
         <div class="p-3 border-b border-gray-100">
             <div class="relative">
-                <input type="text" id="sidebar-search" oninput="handleSidebarSearch()" placeholder="搜索需方名称或报价编号..." class="w-full bg-gray-100 text-xs rounded-md pl-8 pr-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:bg-white transition">
-                <svg class="w-4 h-4 text-gray-400 absolute left-2.5 top-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                <input type="text" id="sidebar-search" oninput="handleSidebarSearch()" placeholder="搜索客户名或报价单号..." class="w-full bg-gray-100 text-xs rounded-md pl-8 pr-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:bg-white transition">
+                <svg class="w-4 h-4 text-gray-400 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
             </div>
         </div>
 
         <div id="sidebar-clients-view" class="flex-1 overflow-y-auto p-3 space-y-2 bg-gray-50/50"></div>
         <div id="sidebar-contracts-view" class="flex-1 overflow-y-auto p-3 space-y-2 bg-gray-50/50 hidden"></div>
 
-        <div class="p-4 border-t border-gray-100 bg-white shadow-[0_-4px_10px_rgba(0,0,0,0.02)]">
-            <button onclick="openParseModal()" class="w-full py-2.5 bg-fuchsia-50 text-fuchsia-600 border border-fuchsia-200 rounded-lg text-xs font-bold hover:bg-fuchsia-600 hover:text-white transition shadow-sm flex justify-center items-center group">
+        <div class="p-3 border-t border-gray-100 bg-white">
+            <button onclick="openParseModal()" class="w-full py-2 bg-fuchsia-50 text-fuchsia-700 border border-fuchsia-200 rounded-lg text-xs font-bold hover:bg-fuchsia-600 hover:text-white transition flex justify-center items-center group">
                 <svg class="w-4 h-4 mr-1.5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
                 粘贴新需方资料
             </button>
@@ -168,34 +174,34 @@
     </aside>
 
     <!-- 右侧报价单主区域 -->
-    <main class="ml-[280px] pt-[60px] pb-10 print:ml-0 print:pt-0 print:pb-0">
+    <main class="ml-[280px] pt-[60px] pb-10 print:ml-0 print:pt-0 print:pb-0 overflow-x-auto">
         <div id="quote-content" class="a4-paper flex flex-col bg-white">
             
-            <h1 class="text-3xl font-bold text-center tracking-[1em] mb-4">报 价 单</h1>
+            <h1 class="text-3xl font-bold text-center tracking-[0.8em] mb-4 text-gray-900">报 价 单</h1>
 
             <!-- 日期与编号 -->
-            <div class="flex justify-between text-[13px] mb-2 font-bold">
+            <div class="flex justify-between text-[13px] mb-2 font-bold px-1">
                 <div class="flex items-end">
                     <span>日期：</span>
-                    <input type="text" id="quote-date" class="border-b border-gray-500 w-36 focus:outline-none text-blue-800 text-center pb-0.5">
+                    <input type="text" id="quote-date" class="border-b border-gray-400 w-36 focus:outline-none text-blue-900 text-center pb-0.5 font-sans">
                 </div>
                 <div class="flex items-end">
                     <span>编号：</span>
-                    <input type="text" id="quote-no" class="border-b border-gray-500 w-44 focus:outline-none text-blue-800 text-center pb-0.5">
+                    <input type="text" id="quote-no" class="border-b border-gray-400 w-44 focus:outline-none text-blue-900 text-center pb-0.5 font-sans">
                 </div>
             </div>
 
             <!-- 核心报价表格 -->
             <table id="quote-table" class="box-table text-[12px] text-center w-full relative">
                 <thead>
-                    <tr class="bg-gray-50 font-bold h-8">
-                        <th style="width: 45px;">编号</th>
+                    <tr class="bg-gray-100 font-bold h-8 text-gray-800">
+                        <th style="width: 42px;">编号</th>
                         <th style="width: 175px;">名称</th>
                         <th style="width: 65px;">代号</th>
                         <th style="width: 80px;">规格</th>
                         <th style="width: 65px;">材质</th>
                         <th style="width: 55px;">数量</th>
-                        <th style="width: 85px;" class="text-red-600 leading-tight" id="th-price">含税13%<br>单价</th>
+                        <th style="width: 85px;" class="text-red-600 leading-tight" id="th-price">含13%税<br>单价</th>
                         <th style="width: 85px;">合计</th>
                         <th style="width: 65px;">备注</th>
                     </tr>
@@ -208,19 +214,20 @@
                 <tbody class="text-left">
                     <!-- 固定补充说明行 -->
                     <tr class="h-7">
-                        <td class="text-center font-bold" id="bottom-note-index">13</td>
+                        <td class="text-center font-bold bg-gray-50 text-gray-600" id="bottom-note-index">13</td>
                         <td colspan="8" class="px-2">
                             <div class="flex items-center w-full">
-                                <span class="font-bold">注：</span>
-                                <input type="text" id="bottom-note-text" class="flex-1 focus:outline-none bg-transparent hover:bg-gray-50 focus:bg-yellow-50 transition px-1" placeholder="请在此输入补充说明 (可选)...">
+                                <span class="font-bold text-gray-700">注：</span>
+                                <input type="text" id="bottom-note-text" class="flex-1 focus:outline-none bg-transparent hover:bg-gray-50 focus:bg-yellow-50 transition px-1" placeholder="在此输入补充说明或条款 (可选)...">
                             </div>
                         </td>
                     </tr>
                     <!-- 人民币合计行 -->
-                    <tr class="h-8 font-bold">
+                    <tr class="h-8 font-bold bg-gray-50/50">
                         <td colspan="9" class="px-2">
-                            人民币合计：<span id="grand-total-cn" class="text-blue-800">零元整</span>
-                            <input type="text" id="grand-total-num" class="w-32 focus:outline-none text-blue-800 text-right ml-2" readonly tabindex="-1">
+                            <span>人民币合计：</span>
+                            <span id="grand-total-cn" class="text-blue-900 ml-1">零元整</span>
+                            <input type="text" id="grand-total-num" class="w-36 focus:outline-none text-blue-900 font-sans ml-2" readonly tabindex="-1">
                         </td>
                     </tr>
                 </tbody>
@@ -229,18 +236,18 @@
                 <tbody class="text-left text-[12px] leading-snug">
                     <tr>
                         <td colspan="4" class="w-1/2 px-2 py-1 align-top relative z-0">
-                            <div class="flex"><span class="w-16">供方：</span><input type="text" id="partyA_name" class="flex-1 focus:outline-none font-bold"></div>
+                            <div class="flex"><span class="w-16 font-bold">供方：</span><input type="text" id="partyA_name" class="flex-1 focus:outline-none font-bold"></div>
                         </td>
                         <td colspan="5" class="w-1/2 px-2 py-1 align-top">
-                            <div class="flex"><span class="w-16">需方：</span><input type="text" id="partyB_name" class="flex-1 focus:outline-none font-bold text-blue-800" placeholder="请填写或在左侧选择需方"></div>
+                            <div class="flex"><span class="w-16 font-bold">需方：</span><input type="text" id="partyB_name" class="flex-1 focus:outline-none font-bold text-blue-900" placeholder="请填写或在左侧选择需方"></div>
                         </td>
                     </tr>
                     <tr>
                         <td colspan="4" class="px-2 py-1 align-top z-0 relative">
-                            <div class="flex"><span class="w-[4.5rem]">公司税号：</span><input type="text" id="partyA_tax" class="flex-1 focus:outline-none"></div>
+                            <div class="flex"><span class="w-[4.5rem]">公司税号：</span><input type="text" id="partyA_tax" class="flex-1 focus:outline-none font-sans"></div>
                         </td>
                         <td colspan="5" class="px-2 py-1 align-top">
-                            <div class="flex"><span class="w-[4.5rem]">公司税号：</span><input type="text" id="partyB_tax" class="flex-1 focus:outline-none"></div>
+                            <div class="flex"><span class="w-[4.5rem]">公司税号：</span><input type="text" id="partyB_tax" class="flex-1 focus:outline-none font-sans"></div>
                         </td>
                     </tr>
                     <tr>
@@ -253,10 +260,10 @@
                     </tr>
                     <tr>
                         <td colspan="4" class="px-2 py-1 align-top z-0 relative">
-                            <div class="flex"><span class="w-[4.5rem]">公司帐号：</span><input type="text" id="partyA_account" class="flex-1 focus:outline-none"></div>
+                            <div class="flex"><span class="w-[4.5rem]">公司帐号：</span><input type="text" id="partyA_account" class="flex-1 focus:outline-none font-sans"></div>
                         </td>
                         <td colspan="5" class="px-2 py-1 align-top">
-                            <div class="flex"><span class="w-[4.5rem]">公司帐号：</span><input type="text" id="partyB_account" class="flex-1 focus:outline-none"></div>
+                            <div class="flex"><span class="w-[4.5rem]">公司帐号：</span><input type="text" id="partyB_account" class="flex-1 focus:outline-none font-sans"></div>
                         </td>
                     </tr>
                     <tr>
@@ -278,23 +285,24 @@
                 </tbody>
             </table>
 
-            <!-- 默认准确放置在【供方（我们自己）】左下角底部的公章 -->
-            <img id="partyA_seal" src="./shy.png" class="realistic-stamp w-[160px] h-[160px] opacity-90" style="left: 110px; bottom: 35px;" alt="公章" onerror="this.style.display='none'">
+            <!-- 公章图片 (支持跨域预览及拖拽) -->
+            <img id="partyA_seal" src="./shy.png" class="realistic-stamp w-[155px] h-[155px] opacity-90" style="left: 100px; top: 780px;" alt="公章" onerror="this.style.display='none'">
 
         </div>
     </main>
 
-    <!-- 弹窗：智能识别需方 -->
+    <!-- 智能识别需方资料弹窗 -->
     <div id="parse-modal" class="fixed inset-0 z-50 bg-black/60 hidden items-center justify-center no-print backdrop-blur-sm">
-        <div class="bg-white rounded-xl shadow-2xl w-[90%] max-w-lg flex flex-col">
-            <div class="px-5 py-4 border-b flex justify-between items-center bg-gray-50 rounded-t-xl">
-                <h3 class="text-base font-bold text-gray-800">智能识别需方(乙方)资料</h3>
+        <div class="bg-white rounded-xl shadow-2xl w-[90%] max-w-lg flex flex-col overflow-hidden">
+            <div class="px-5 py-4 border-b flex justify-between items-center bg-gray-50">
+                <h3 class="text-sm font-bold text-gray-800">智能识别需方(乙方)开票资料</h3>
                 <button onclick="closeParseModal()" class="text-gray-400 hover:text-red-500"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
             </div>
             <div class="p-4">
-                <textarea id="parse-textarea" rows="6" class="w-full border border-gray-300 rounded p-3 text-xs focus:outline-none focus:border-fuchsia-500" placeholder="请在此粘贴客户开票资料..."></textarea>
+                <p class="text-xs text-gray-500 mb-2">可直接从微信、邮件复制客户开票抬头、税号、银行信息粘贴在下方：</p>
+                <textarea id="parse-textarea" rows="6" class="w-full border border-gray-300 rounded p-3 text-xs focus:outline-none focus:border-fuchsia-500 leading-relaxed" placeholder="示例：&#10;名称：东莞市示例五金科技有限公司&#10;税号：91441900MA5XXXXXX&#10;开户行及账号：建行东莞支行 4405018655...&#10;地址电话：东莞市塘厦镇... 0769-88888888"></textarea>
             </div>
-            <div class="px-4 py-3 border-t bg-gray-50 rounded-b-xl flex justify-end gap-3">
+            <div class="px-4 py-3 border-t bg-gray-50 flex justify-end gap-2.5">
                 <button onclick="closeParseModal()" class="px-4 py-2 border rounded-lg text-gray-600 bg-white hover:bg-gray-100 text-xs">取消</button>
                 <button onclick="executeParse()" class="px-4 py-2 bg-fuchsia-600 text-white rounded-lg hover:bg-fuchsia-700 text-xs font-bold shadow-md">一键识别填入</button>
             </div>
@@ -303,13 +311,14 @@
 
     <script>
         function adjustTextareaHeight(el) {
-            el.style.height = '18px'; 
-            el.style.height = el.scrollHeight + 'px'; 
+            if (!el) return;
+            el.style.height = 'auto'; 
+            el.style.height = Math.max(el.scrollHeight, 18) + 'px'; 
         }
 
         let currentCompanyType = 'sanheyi';
 
-        // ================= 1. 供方配置 =================
+        // 1. 供方预设配置
         const companyData = {
             sanheyi: {
                 name: '深圳市三合一五金有限公司',
@@ -357,7 +366,7 @@
             
             const addrEl = document.getElementById('partyA_address');
             addrEl.value = data.address;
-            setTimeout(() => adjustTextareaHeight(addrEl), 0);
+            adjustTextareaHeight(addrEl);
             
             document.getElementById('th-price').innerHTML = data.priceHeaderHtml;
             
@@ -370,15 +379,14 @@
             }
         }
 
-        // ================= 2. 邻列联动拖拽与公章拖拽 =================
+        // 2. 列宽与印章拖动
         function initExcelDragFeatures() {
             const table = document.getElementById('quote-table');
             const headers = Array.from(table.querySelectorAll('thead th'));
 
-            // 循环除去最后一列之外的所有表头，保持最外侧左右两边绝对锁定
             headers.slice(0, headers.length - 1).forEach((th, index) => {
                 const nextTh = headers[index + 1];
-                if (!nextTh) return;
+                if (!nextTh || th.querySelector('.col-resizer')) return;
 
                 const resizer = document.createElement('div');
                 resizer.className = 'col-resizer no-print';
@@ -420,41 +428,6 @@
             initStampDrag();
         }
 
-        function attachRowResizer(tr) {
-            let resizer = tr.querySelector('.row-resizer');
-            if (!resizer) {
-                resizer = document.createElement('div');
-                resizer.className = 'row-resizer no-print';
-                tr.appendChild(resizer);
-
-                let startY = 0, startHeight = 0;
-
-                resizer.addEventListener('mousedown', (e) => {
-                    e.preventDefault();
-                    startY = e.clientY;
-                    startHeight = tr.offsetHeight;
-                    resizer.classList.add('resizing');
-
-                    const onMouseMove = (moveEvent) => {
-                        const newHeight = startHeight + (moveEvent.clientY - startY);
-                        if (newHeight > 20) {
-                            tr.style.height = `${newHeight}px`;
-                        }
-                    };
-
-                    const onMouseUp = () => {
-                        resizer.classList.remove('resizing');
-                        document.removeEventListener('mousemove', onMouseMove);
-                        document.removeEventListener('mouseup', onMouseUp);
-                    };
-
-                    document.addEventListener('mousemove', onMouseMove);
-                    document.addEventListener('mouseup', onMouseUp);
-                });
-            }
-        }
-
-        // 公章拖拽（锁死在 A4 纸容器内部）
         function initStampDrag() {
             const seal = document.getElementById('partyA_seal');
             const container = document.getElementById('quote-content');
@@ -469,27 +442,21 @@
                 initialLeft = seal.offsetLeft;
                 initialTop = seal.offsetTop;
 
-                const containerWidth = container.offsetWidth;
-                const containerHeight = container.offsetHeight;
-                const sealWidth = seal.offsetWidth;
-                const sealHeight = seal.offsetHeight;
-
                 const onMouseMove = (moveEvent) => {
                     if (!isDragging) return;
                     const dx = moveEvent.clientX - startX;
                     const dy = moveEvent.clientY - startY;
 
-                    let newLeft = initialLeft + dx;
-                    let newTop = initialTop + dy;
+                    const containerWidth = container.offsetWidth;
+                    const containerHeight = container.offsetHeight;
+                    const sealWidth = seal.offsetWidth || 155;
+                    const sealHeight = seal.offsetHeight || 155;
 
-                    if (newLeft < 0) newLeft = 0;
-                    if (newLeft > containerWidth - sealWidth) newLeft = containerWidth - sealWidth;
-                    if (newTop < 0) newTop = 0;
-                    if (newTop > containerHeight - sealHeight) newTop = containerHeight - sealHeight;
+                    let newLeft = Math.max(0, Math.min(initialLeft + dx, containerWidth - sealWidth));
+                    let newTop = Math.max(0, Math.min(initialTop + dy, containerHeight - sealHeight));
 
                     seal.style.left = `${newLeft}px`;
                     seal.style.top = `${newTop}px`;
-                    seal.style.bottom = 'auto'; // 清除默认 bottom 定位
                 };
 
                 const onMouseUp = () => {
@@ -503,9 +470,7 @@
             });
         }
 
-        window.onload = function() {
-            switchCompany('sanheyi'); 
-            
+        function initDateAndNo() {
             const now = new Date();
             const year = now.getFullYear();
             const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -515,20 +480,50 @@
 
             document.getElementById('quote-date').value = `${year}年${month}月${day}日`;
             document.getElementById('quote-no').value = `BJ${year}${month}${day}${hour}${minute}`;
+        }
 
-            // 初始化生成 12 行空白明细
-            for(let i=0; i<12; i++){
-                insertRowHTML(document.getElementById('product-tbody'), 'prod');
+        window.onload = function() {
+            switchCompany('sanheyi'); 
+            initDateAndNo();
+
+            // 生成初始 12 行空白明细
+            const tbody = document.getElementById('product-tbody');
+            tbody.innerHTML = '';
+            for(let i = 0; i < 12; i++){
+                insertRowHTML(tbody, 'prod');
             }
             updateRowIndices();
-
             initExcelDragFeatures();
 
             renderSavedClients();
             renderSavedContracts();
         };
 
-        // ================= 3. 侧边栏 Tab 控制 =================
+        function createNewQuote() {
+            if (!confirm("确定要新建报价单吗？未保存的内容将会被清空。")) return;
+            initDateAndNo();
+            document.getElementById('partyB_name').value = '';
+            document.getElementById('partyB_tax').value = '';
+            document.getElementById('partyB_bank').value = '';
+            document.getElementById('partyB_account').value = '';
+            document.getElementById('partyB_agent').value = '';
+            document.getElementById('partyB_address').value = '';
+            document.getElementById('bottom-note-text').value = '';
+            
+            const seal = document.getElementById('partyA_seal');
+            seal.style.left = '100px';
+            seal.style.top = '780px';
+
+            const tbody = document.getElementById('product-tbody');
+            tbody.innerHTML = '';
+            for(let i = 0; i < 12; i++){
+                insertRowHTML(tbody, 'prod');
+            }
+            updateRowIndices();
+            calcTotal();
+        }
+
+        // 3. 侧边栏与缓存管理
         let activeTab = 'clients';
 
         function switchSidebarTab(tab) {
@@ -561,7 +556,6 @@
             }
         }
 
-        // ================= 4. 需方客户库管理 =================
         let savedClients = JSON.parse(localStorage.getItem('contract_clients') || '{}');
 
         function renderSavedClients(keyword = '') {
@@ -577,26 +571,27 @@
             }
 
             if(names.length === 0) {
-                container.innerHTML = `<div class="flex flex-col items-center justify-center h-40 text-gray-400"><p class="text-xs">暂无符合的客户</p></div>`;
+                container.innerHTML = `<div class="flex flex-col items-center justify-center h-40 text-gray-400"><p class="text-xs">暂无客户记录</p></div>`;
                 return;
             }
             
             names.forEach(name => {
                 const data = savedClients[name];
                 const card = document.createElement('div');
-                card.className = 'group relative p-3 bg-white border border-gray-100 rounded-lg cursor-pointer hover:-translate-y-0.5 hover:shadow-md hover:border-indigo-200 transition-all duration-200';
+                card.className = 'group relative p-3 bg-white border border-gray-200 rounded-lg cursor-pointer hover:-translate-y-0.5 hover:shadow hover:border-indigo-300 transition-all duration-150';
                 card.onclick = () => fillClient(name);
 
                 const title = document.createElement('h4');
-                title.className = 'text-[13px] font-bold text-gray-800 pr-7 truncate';
+                title.className = 'text-[12px] font-bold text-gray-800 pr-7 truncate';
                 title.innerText = name;
 
                 const sub = document.createElement('p');
                 sub.className = 'text-[11px] text-gray-500 mt-1 truncate';
-                sub.innerText = data.tax ? `税号: ${data.tax}` : (data.agent ? `联系人: ${data.agent}` : '暂无更多信息');
+                sub.innerText = data.tax ? `税号: ${data.tax}` : (data.agent ? `联系人: ${data.agent}` : '点击快速填入此客户');
 
                 const delBtn = document.createElement('button');
-                delBtn.className = 'absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity rounded-md hover:bg-red-50 focus:outline-none';
+                delBtn.className = 'absolute right-2 top-2.5 p-1 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity rounded hover:bg-red-50';
+                delBtn.title = '删除此客户';
                 delBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>`;
                 delBtn.onclick = (e) => {
                     e.stopPropagation(); 
@@ -617,7 +612,7 @@
         function saveCurrentClient() {
             const name = document.getElementById('partyB_name').value.trim();
             if(!name) return;
-            const client = {
+            savedClients[name] = {
                 name: name,
                 tax: document.getElementById('partyB_tax').value.trim(),
                 bank: document.getElementById('partyB_bank').value.trim(),
@@ -625,7 +620,6 @@
                 address: document.getElementById('partyB_address').value.trim(),
                 agent: document.getElementById('partyB_agent').value.trim()
             };
-            savedClients[name] = client;
             localStorage.setItem('contract_clients', JSON.stringify(savedClients));
             renderSavedClients();
         }
@@ -645,7 +639,7 @@
             document.getElementById('partyB_agent').value = data.agent || '';
         }
 
-        // ================= 5. 历史报价单保存与恢复 =================
+        // 4. 报价单存储与恢复
         let savedQuotes = JSON.parse(localStorage.getItem('quote_records') || '{}');
 
         function saveCurrentQuote() {
@@ -669,7 +663,7 @@
                             spec: inputs[2].value,
                             material: inputs[3].value,
                             qty: inputs[4].value,
-                            price: inputs[5].value ? parseFloat(inputs[5].value).toFixed(2) : '',
+                            price: inputs[5].value,
                             total: inputs[6].value,
                             remark: inputs[7].value
                         });
@@ -684,7 +678,7 @@
 
             const seal = document.getElementById('partyA_seal');
 
-            const quoteRecord = {
+            savedQuotes[quoteNo] = {
                 quoteNo: quoteNo,
                 companyType: currentCompanyType,
                 quoteDate: document.getElementById('quote-date').value,
@@ -698,21 +692,20 @@
                     agent: document.getElementById('partyB_agent').value,
                 },
                 sealPos: {
-                    left: seal.style.left,
-                    top: seal.style.top
+                    left: seal.style.left || '100px',
+                    top: seal.style.top || '780px'
                 },
                 items: items,
                 updatedAt: new Date().toLocaleString('zh-CN', { hour12: false })
             };
 
-            savedQuotes[quoteNo] = quoteRecord;
             localStorage.setItem('quote_records', JSON.stringify(savedQuotes));
             renderSavedContracts();
         }
 
         function manualSaveQuote() {
             saveCurrentQuote();
-            alert('✅ 当前报价单已保存在左侧【历史报价】中！点击随时可加载修改。');
+            alert('✅ 报价单已成功保存到左侧【历史报价】中！');
         }
 
         function renderSavedContracts(keyword = '') {
@@ -731,34 +724,35 @@
             }
 
             if (nos.length === 0) {
-                container.innerHTML = `<div class="flex flex-col items-center justify-center h-40 text-gray-400"><p class="text-xs">暂无符合的历史报价</p></div>`;
+                container.innerHTML = `<div class="flex flex-col items-center justify-center h-40 text-gray-400"><p class="text-xs">暂无历史报价记录</p></div>`;
                 return;
             }
 
             nos.forEach(no => {
                 const quote = savedQuotes[no];
                 const card = document.createElement('div');
-                card.className = 'group relative p-3 bg-white border border-gray-100 rounded-lg cursor-pointer hover:-translate-y-0.5 hover:shadow-md hover:border-indigo-200 transition-all duration-200';
+                card.className = 'group relative p-3 bg-white border border-gray-200 rounded-lg cursor-pointer hover:-translate-y-0.5 hover:shadow hover:border-indigo-300 transition-all duration-150';
                 card.onclick = () => loadQuote(no);
 
                 const title = document.createElement('h4');
-                title.className = 'text-[12px] font-bold text-gray-800 pr-7 truncate';
-                title.innerText = `编号: ${no}`;
+                title.className = 'text-[12px] font-bold text-gray-800 pr-7 truncate font-sans';
+                title.innerText = no;
 
                 const clientName = document.createElement('p');
                 clientName.className = 'text-[11px] text-indigo-900 font-semibold mt-0.5 truncate';
-                clientName.innerText = quote.partyB?.name || '未知需方';
+                clientName.innerText = quote.partyB?.name || '未填需方名称';
 
                 const sub = document.createElement('p');
                 sub.className = 'text-[10px] text-gray-400 mt-1 truncate';
-                sub.innerText = `保存时间: ${quote.updatedAt || ''}`;
+                sub.innerText = `保存于: ${quote.updatedAt || ''}`;
 
                 const delBtn = document.createElement('button');
-                delBtn.className = 'absolute right-2 top-2 p-1.5 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity rounded-md hover:bg-red-50 focus:outline-none';
+                delBtn.className = 'absolute right-2 top-2.5 p-1 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity rounded hover:bg-red-50';
+                delBtn.title = '删除此报价';
                 delBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>`;
                 delBtn.onclick = (e) => {
                     e.stopPropagation();
-                    if(confirm(`确定要删除报价记录【${no}】吗？`)) {
+                    if(confirm(`确定要删除历史报价【${no}】吗？`)) {
                         delete savedQuotes[no];
                         localStorage.setItem('quote_records', JSON.stringify(savedQuotes));
                         renderSavedContracts(document.getElementById('sidebar-search').value);
@@ -794,14 +788,12 @@
             }
 
             const seal = document.getElementById('partyA_seal');
-            if (quote.sealPos && quote.sealPos.left) {
+            if (quote.sealPos && quote.sealPos.left && quote.sealPos.top) {
                 seal.style.left = quote.sealPos.left;
                 seal.style.top = quote.sealPos.top;
-                seal.style.bottom = 'auto';
             } else {
-                seal.style.left = '110px';
-                seal.style.bottom = '35px';
-                seal.style.top = 'auto';
+                seal.style.left = '100px';
+                seal.style.top = '780px';
             }
 
             const tbody = document.getElementById('product-tbody');
@@ -811,101 +803,144 @@
             items.forEach(item => {
                 if (item.type === 'note') {
                     insertRowHTML(tbody, 'note');
-                    const lastRow = tbody.lastElementChild;
-                    lastRow.querySelector('.note-input').value = item.content || '';
+                    tbody.lastElementChild.querySelector('.note-input').value = item.content || '';
                 } else {
                     insertRowHTML(tbody, 'prod');
-                    const lastRow = tbody.lastElementChild;
-                    const inputs = lastRow.querySelectorAll('input');
+                    const inputs = tbody.lastElementChild.querySelectorAll('input');
                     inputs[0].value = item.name || '';
                     inputs[1].value = item.code || '';
                     inputs[2].value = item.spec || '';
                     inputs[3].value = item.material || '';
                     inputs[4].value = item.qty || '';
-                    inputs[5].value = item.price ? parseFloat(item.price).toFixed(2) : '';
+                    inputs[5].value = item.price || '';
                     inputs[6].value = item.total || '';
                     inputs[7].value = item.remark || '';
                 }
             });
 
+            // 保持表格至少 12 行
+            while(tbody.querySelectorAll('.item-row').length < 12) {
+                insertRowHTML(tbody, 'prod');
+            }
+
             calcTotal();
             updateRowIndices();
-            checkBlankRows();
         }
 
-        // ================= 6. 智能识别需方 =================
+        // 5. 智能解析需方资料
         function openParseModal() { document.getElementById('parse-modal').classList.remove('hidden'); document.getElementById('parse-modal').classList.add('flex'); }
         function closeParseModal() { document.getElementById('parse-modal').classList.add('hidden'); document.getElementById('parse-modal').classList.remove('flex'); }
         
         function executeParse() {
             const text = document.getElementById('parse-textarea').value;
             if(!text) return closeParseModal();
-            const nameMatch = text.match(/(?:公司名称|名称|全称)[:：\s]*([^\n]+)/) || text.match(/^([^\n]+公司)/);
-            const taxMatch = text.match(/(?:纳税人识别号|税号|统一社会信用代码)[:：\s]*([a-zA-Z0-9]{15,18})/);
-            const bankMatch = text.match(/(?:开户行|行号|银行|开户银行)[:：\s]*([^\n]+)/);
-            const accountMatch = text.match(/(?:账号|帐号)[:：\s]*([\d\s\-]{8,})/);
-            const addressMatch = text.match(/(?:地址|厂址|公司地址)[:：\s]*([^\n]+)/);
-            const phoneMatch = text.match(/(?:电话|联系电话|公司电话|手机)[:：\s]*([0-9\-\s]{7,})/);
-            const agentMatch = text.match(/(?:法定代表人|代表人|委托代理人|联系人)[:：\s]*([^\n\s]+)/);
 
-            if(nameMatch) document.getElementById('partyB_name').value = nameMatch[1].trim();
-            if(taxMatch) document.getElementById('partyB_tax').value = taxMatch[1].trim();
-            if(bankMatch) document.getElementById('partyB_bank').value = bankMatch[1].trim();
-            if(accountMatch) document.getElementById('partyB_account').value = accountMatch[1].replace(/\s/g,'').trim();
-            if(addressMatch) {
+            const nameMatch = text.match(/(?:公司名称|名称|全称|单位名称)[:：\s]*([^\n\r]+)/) || text.match(/^([^\n\r]+(?:公司|商行|企业|厂|店))/m);
+            const taxMatch = text.match(/(?:纳税人识别号|税号|统一社会信用代码)[:：\s]*([a-zA-Z0-9]{15,18})/);
+            
+            // 兼容“开户行及账号：建行东莞支行 44050186...”这种复合写法
+            const bankAccountCombined = text.match(/(?:开户行及账号|开户银行及账号|银行账号)[:：\s]*([^\n\r]+)/);
+            let bank = "", account = "";
+            if (bankAccountCombined) {
+                const parts = bankAccountCombined[1].trim().split(/\s+/);
+                if (parts.length >= 2) {
+                    bank = parts[0];
+                    account = parts.slice(1).join('').replace(/[\s-]/g, '');
+                } else {
+                    account = parts[0].replace(/[\s-]/g, '');
+                }
+            }
+
+            if (!bank) {
+                const bankMatch = text.match(/(?:开户行|行号|银行|开户银行)[:：\s]*([^\n\r]+)/);
+                if (bankMatch) bank = bankMatch[1].trim();
+            }
+            if (!account) {
+                const accountMatch = text.match(/(?:账号|帐号)[:：\s]*([\d\s\-]{8,})/);
+                if (accountMatch) account = accountMatch[1].replace(/\s/g,'').trim();
+            }
+
+            // 兼容“地址、电话：东莞市... 0769-...”这种写法
+            let address = "", phone = "", agent = "";
+            const addrPhoneCombined = text.match(/(?:地址、电话|地址及电话|公司地址电话)[:：\s]*([^\n\r]+)/);
+            if (addrPhoneCombined) {
+                const parts = addrPhoneCombined[1].trim().split(/\s+/);
+                if (parts.length >= 2) {
+                    phone = parts[parts.length - 1];
+                    address = parts.slice(0, -1).join(' ');
+                } else {
+                    address = parts[0];
+                }
+            }
+
+            if (!address) {
+                const addressMatch = text.match(/(?:地址|厂址|公司地址)[:：\s]*([^\n\r]+)/);
+                if (addressMatch) address = addressMatch[1].trim();
+            }
+            if (!phone) {
+                const phoneMatch = text.match(/(?:电话|联系电话|公司电话|手机)[:：\s]*([0-9\-\s]{7,})/);
+                if (phoneMatch) phone = phoneMatch[1].trim();
+            }
+
+            const agentMatch = text.match(/(?:法定代表人|代表人|委托代理人|联系人)[:：\s]*([^\n\r\s]+)/);
+            if (agentMatch) agent = agentMatch[1].trim();
+
+            if (nameMatch) document.getElementById('partyB_name').value = nameMatch[1].trim();
+            if (taxMatch) document.getElementById('partyB_tax').value = taxMatch[1].trim();
+            if (bank) document.getElementById('partyB_bank').value = bank;
+            if (account) document.getElementById('partyB_account').value = account;
+            if (address) {
                 const bAddrEl = document.getElementById('partyB_address');
-                bAddrEl.value = addressMatch[1].trim();
+                bAddrEl.value = address;
                 adjustTextareaHeight(bAddrEl);
             }
-            let agentStr = "";
-            if(agentMatch) agentStr += agentMatch[1].trim() + " ";
-            if(phoneMatch) agentStr += phoneMatch[1].trim();
-            document.getElementById('partyB_agent').value = agentStr.trim();
+            let agentStr = (agent + " " + phone).trim();
+            if (agentStr) document.getElementById('partyB_agent').value = agentStr;
             
             saveCurrentClient();
             document.getElementById('parse-textarea').value = '';
             closeParseModal();
         }
 
-        // ================= 7. 表格增减与精准布局悬浮菜单 =================
+        // 6. 表格行生成与增删
         function formatDecimal(input) {
-            if (input.value !== '' && !isNaN(parseFloat(input.value))) {
-                input.value = parseFloat(input.value).toFixed(2);
+            const val = parseFloat(input.value);
+            if (!isNaN(val)) {
+                input.value = val.toFixed(2);
             }
         }
 
         function insertRowHTML(parent, type, insertAfterNode = null) {
             const tr = document.createElement('tr');
-            tr.className = `item-row ${type}-row group relative h-7`;
+            tr.className = `item-row ${type}-row group relative h-7 hover:bg-yellow-50/20`;
 
-            // 修正悬浮操作菜单：使用绝对定位浮在表格外侧右右方(-82px)，增加白底阴影框，彻底解决遮挡变形 Bug
             const actionsHTML = `
-                <div class="absolute -right-[82px] top-1/2 -translate-y-1/2 hidden group-hover:flex no-print gap-1 z-50 bg-white/95 p-1 rounded shadow-md border border-gray-200">
-                    <button type="button" onclick="addRow(this, 'prod')" title="添加产品行" class="bg-blue-600 hover:bg-blue-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shadow-sm">+产品</button>
-                    <button type="button" onclick="addRow(this, 'note')" title="添加说明行" class="bg-amber-600 hover:bg-amber-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shadow-sm">+说明</button>
-                    <button type="button" onclick="removeRow(this)" title="删除此行" class="bg-red-600 hover:bg-red-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shadow-sm">删</button>
+                <div class="absolute -right-[76px] top-1/2 -translate-y-1/2 hidden group-hover:flex no-print gap-0.5 z-50 bg-white/95 p-0.5 rounded shadow border border-gray-300">
+                    <button type="button" onclick="addRow(this, 'prod')" title="插入产品行" class="bg-blue-600 hover:bg-blue-700 text-white px-1 py-0.5 rounded text-[10px] font-bold shadow-xs">+行</button>
+                    <button type="button" onclick="addRow(this, 'note')" title="插入说明行" class="bg-amber-600 hover:bg-amber-700 text-white px-1 py-0.5 rounded text-[10px] font-bold shadow-xs">+注</button>
+                    <button type="button" onclick="removeRow(this)" title="删除此行" class="bg-red-600 hover:bg-red-700 text-white px-1 py-0.5 rounded text-[10px] font-bold shadow-xs">删</button>
                 </div>
             `;
 
             if (type === 'prod') {
                 tr.innerHTML = `
-                    <td class="p-0 row-index bg-gray-50 text-gray-500 font-medium"></td>
-                    <td class="p-0"><input type="text" class="name-input w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-50"></td>
-                    <td class="p-0"><input type="text" class="w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-50"></td>
-                    <td class="p-0"><input type="text" class="w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-50"></td>
-                    <td class="p-0"><input type="text" class="w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-50"></td>
-                    <td class="p-0"><input type="number" class="qty w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-50" oninput="calcTotal()"></td>
-                    <td class="p-0"><input type="number" step="0.01" class="price w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-50" oninput="calcTotal()" onblur="formatDecimal(this)"></td>
-                    <td class="p-0"><input type="text" class="row-total w-full h-full px-1 text-center font-bold text-gray-700 bg-gray-50 focus:outline-none" readonly tabindex="-1"></td>
+                    <td class="p-0 row-index bg-gray-50 text-gray-600 font-medium"></td>
+                    <td class="p-0"><input type="text" class="name-input w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-100/50"></td>
+                    <td class="p-0"><input type="text" class="w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-100/50"></td>
+                    <td class="p-0"><input type="text" class="w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-100/50"></td>
+                    <td class="p-0"><input type="text" class="w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-100/50"></td>
+                    <td class="p-0"><input type="number" step="any" class="qty w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-100/50 font-sans" oninput="calcTotal()"></td>
+                    <td class="p-0"><input type="number" step="any" class="price w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-100/50 font-sans" oninput="calcTotal()" onblur="formatDecimal(this)"></td>
+                    <td class="p-0"><input type="text" class="row-total w-full h-full px-1 text-center font-bold text-gray-800 bg-gray-50 focus:outline-none font-sans" readonly tabindex="-1"></td>
                     <td class="p-0 relative">
-                        <input type="text" class="w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-50">
+                        <input type="text" class="w-full h-full px-1 text-center focus:outline-none focus:bg-yellow-100/50">
                         ${actionsHTML}
                     </td>
                 `;
             } else {
                 tr.innerHTML = `
-                    <td class="p-0 row-index bg-gray-50 text-gray-500 font-medium"></td>
-                    <td class="p-0" colspan="6"><input type="text" class="note-input w-full h-full px-2 text-center text-blue-800 focus:outline-none focus:bg-yellow-50" placeholder="在此输入合并说明(如:含模具费XXX元)"></td>
+                    <td class="p-0 row-index bg-gray-50 text-gray-600 font-medium"></td>
+                    <td class="p-0" colspan="6"><input type="text" class="note-input w-full h-full px-2 text-center text-blue-900 font-medium focus:outline-none focus:bg-yellow-100/50" placeholder="在此输入合并说明 (如: 模具费 / 运费等)"></td>
                     <td class="p-0 bg-gray-50"></td>
                     <td class="p-0 relative bg-gray-50">
                         ${actionsHTML}
@@ -918,14 +953,13 @@
             } else {
                 parent.appendChild(tr);
             }
-
-            attachRowResizer(tr);
         }
 
         function updateRowIndices() {
             const rows = document.querySelectorAll('#product-tbody .item-row');
             rows.forEach((row, idx) => {
-                row.querySelector('.row-index').innerText = idx + 1;
+                const indexCell = row.querySelector('.row-index');
+                if (indexCell) indexCell.innerText = idx + 1;
             });
             document.getElementById('bottom-note-index').innerText = rows.length + 1;
         }
@@ -934,7 +968,6 @@
             const tr = btn.closest('tr');
             insertRowHTML(null, type, tr);
             updateRowIndices();
-            checkBlankRows();
             
             const newTr = tr.nextElementSibling;
             const focusInput = newTr.querySelector('.name-input') || newTr.querySelector('.note-input');
@@ -944,69 +977,26 @@
         function removeRow(btn) {
             const tbody = document.getElementById('product-tbody');
             if(tbody.querySelectorAll('.item-row').length <= 1) {
-                alert("至少保留一行明细！"); return;
+                alert("至少保留一行明细！");
+                return;
             }
             btn.closest('tr').remove();
             calcTotal();
             updateRowIndices();
-            checkBlankRows();
         }
 
-        function checkBlankRows() {
-            const rows = Array.from(document.querySelectorAll('#product-tbody .item-row'));
-            let lastContentIndex = -1;
-
-            rows.forEach((row, index) => {
-                let hasContent = false;
-                
-                if (row.classList.contains('prod-row')) {
-                    const inputs = row.querySelectorAll('input:not(.row-total)');
-                    inputs.forEach(input => {
-                        if (input.classList.contains('name-input') && input.value === '以下空白') return; 
-                        if (input.value.trim() !== '') hasContent = true;
-                    });
-                } else if (row.classList.contains('note-row')) {
-                    const noteInp = row.querySelector('.note-input');
-                    if (noteInp && noteInp.value.trim() !== '') hasContent = true;
-                }
-                
-                let isFocused = row.contains(document.activeElement);
-                if (hasContent || isFocused) { lastContentIndex = index; }
-            });
-
-            if (lastContentIndex === rows.length - 1) {
-                insertRowHTML(document.getElementById('product-tbody'), 'prod');
-                updateRowIndices();
-                setTimeout(checkBlankRows, 10); 
-                return; 
-            }
-
-            rows.forEach((row, index) => {
-                if (row.classList.contains('prod-row')) {
-                    const nameInput = row.querySelector('.name-input');
-                    if (lastContentIndex >= 0 && index === lastContentIndex + 1) {
-                        if (nameInput.value === '') nameInput.value = '以下空白';
-                    } else {
-                        if (nameInput.value === '以下空白') nameInput.value = '';
-                    }
-                }
-            });
-        }
-
-        const tbody = document.getElementById('product-tbody');
-        tbody.addEventListener('input', checkBlankRows);
-        tbody.addEventListener('focusin', checkBlankRows);
-        tbody.addEventListener('focusout', () => setTimeout(checkBlankRows, 10));
-
-        // ================= 8. 自动金额推算 =================
+        // 7. 金额自动计算与高精度中文大写转换
         function calcTotal() {
             let grandTotal = 0;
             document.querySelectorAll('.prod-row').forEach(row => {
-                const qty = parseFloat(row.querySelector('.qty').value) || 0;
-                const price = parseFloat(row.querySelector('.price').value) || 0;
+                const qtyVal = row.querySelector('.qty').value.trim();
+                const priceVal = row.querySelector('.price').value.trim();
                 const totalInput = row.querySelector('.row-total');
-                const rowTotal = qty * price;
-                if(rowTotal > 0) { 
+                
+                if(qtyVal !== '' && priceVal !== '' && !isNaN(qtyVal) && !isNaN(priceVal)) {
+                    const qty = parseFloat(qtyVal);
+                    const price = parseFloat(priceVal);
+                    const rowTotal = Math.round(qty * price * 100) / 100;
                     totalInput.value = rowTotal.toFixed(2); 
                     grandTotal += rowTotal; 
                 } else { 
@@ -1014,54 +1004,131 @@
                 }
             });
             
-            document.getElementById('grand-total-num').value = grandTotal > 0 ? `(¥ ${grandTotal.toFixed(2)})` : '';
-            document.getElementById('grand-total-cn').innerText = grandTotal > 0 ? amountToChinese(grandTotal) : '零元整';
+            grandTotal = Math.round(grandTotal * 100) / 100;
+            document.getElementById('grand-total-num').value = grandTotal !== 0 ? `(¥ ${grandTotal.toFixed(2)})` : '';
+            document.getElementById('grand-total-cn').innerText = grandTotal !== 0 ? amountToChinese(grandTotal) : '零元整';
         }
 
-        function amountToChinese(n) {
-            const fraction =['角', '分'];
-            const digit =['零', '壹', '贰', '叁', '肆', '伍', '陆', '柒', '捌', '玖'];
-            const unit = [['元', '万', '亿'],['', '拾', '佰', '仟']];
-            const head = n < 0 ? '欠' : '';
-            n = Math.abs(n); let s = '';
-            for (let i = 0; i < fraction.length; i++) s += (digit[Math.floor(n * 10 * Math.pow(10, i)) % 10] + fraction[i]).replace(/零./, '');
-            s = s || '整'; n = Math.floor(n);
-            for (let i = 0; i < unit[0].length && n > 0; i++) {
-                let p = '';
-                for (let j = 0; j < unit[1].length && n > 0; j++) { p = digit[n % 10] + unit[1][j] + p; n = Math.floor(n / 10); }
-                s = p.replace(/(零.)*零$/, '').replace(/^$/, '零') + unit[0][i] + s;
+        // 标准人民币大写金额转换算法（彻底解决角分截断与零的连写问题）
+        function amountToChinese(amount) {
+            if (isNaN(amount) || amount === 0) return '零元整';
+            
+            const cnDigits = ['零', '壹', '贰', '叁', '肆', '伍', '陆', '柒', '捌', '玖'];
+            const cnUnits = ['', '拾', '佰', '仟'];
+            const cnBigUnits = ['', '万', '亿', '兆'];
+            const cnDecUnits = ['角', '分'];
+            
+            let prefix = amount < 0 ? '负' : '';
+            amount = Math.abs(amount);
+            
+            // 拆分整数与小数，做四舍五入
+            let integral = Math.floor(Math.round(amount * 100) / 100);
+            let decimal = Math.round((amount - integral) * 100);
+            
+            let output = '';
+            
+            if (integral > 0) {
+                let zeroCount = 0;
+                let intStr = integral.toString();
+                let len = intStr.length;
+                let bigUnitIndex = 0;
+                
+                for (let i = 0; i < len; i += 4) {
+                    let section = intStr.slice(Math.max(0, len - i - 4), len - i);
+                    let sectionStr = '';
+                    let secZero = 0;
+                    
+                    for (let j = 0; j < section.length; j++) {
+                        let num = parseInt(section[j]);
+                        let unitIdx = section.length - 1 - j;
+                        
+                        if (num === 0) {
+                            secZero++;
+                        } else {
+                            if (secZero > 0) {
+                                sectionStr += cnDigits[0];
+                                secZero = 0;
+                            }
+                            sectionStr += cnDigits[num] + cnUnits[unitIdx];
+                        }
+                    }
+                    
+                    if (sectionStr !== '') {
+                        output = sectionStr + cnBigUnits[bigUnitIndex] + output;
+                    }
+                    bigUnitIndex++;
+                }
+                output += '元';
             }
-            return head + s.replace(/(零.)*零元/, '元').replace(/(零.)+/g, '零').replace(/^整$/, '零元整');
+            
+            if (decimal > 0) {
+                let jiao = Math.floor(decimal / 10);
+                let fen = decimal % 10;
+                
+                if (jiao > 0) {
+                    output += cnDigits[jiao] + cnDecUnits[0];
+                } else if (integral > 0 && fen > 0) {
+                    output += cnDigits[0];
+                }
+                
+                if (fen > 0) {
+                    output += cnDigits[fen] + cnDecUnits[1];
+                }
+            } else {
+                output += '整';
+            }
+            
+            return prefix + output;
         }
 
-        // ================= 9. 导出 PDF =================
+        // 8. 导出 PDF
         function downloadPDF() {
             saveCurrentQuote();
-
             window.scrollTo(0, 0); 
-            const element = document.getElementById('quote-content');
             
+            const element = document.getElementById('quote-content');
             const inputs = element.querySelectorAll('input');
             const textareas = element.querySelectorAll('textarea');
-            inputs.forEach(input => { input.setAttribute('data-placeholder', input.placeholder || ''); input.placeholder = ''; input.setAttribute('value', input.value); });
-            textareas.forEach(textarea => { textarea.setAttribute('data-placeholder', textarea.placeholder || ''); textarea.placeholder = ''; textarea.textContent = textarea.value; });
+            
+            inputs.forEach(input => { 
+                input.setAttribute('data-placeholder', input.placeholder || ''); 
+                input.placeholder = ''; 
+                input.setAttribute('value', input.value); 
+            });
+            textareas.forEach(textarea => { 
+                textarea.setAttribute('data-placeholder', textarea.placeholder || ''); 
+                textarea.placeholder = ''; 
+                textarea.textContent = textarea.value; 
+            });
 
             const btn = document.getElementById('pdf-btn');
-            const originalText = btn.innerHTML; btn.innerHTML = '正在生成...';
+            const originalText = btn.innerHTML; 
+            btn.innerHTML = '正在生成...';
 
-            const partyAName = document.getElementById('partyA_name').value || '公司';
+            const partyAName = document.getElementById('partyA_name').value || '报价单';
             const quoteNo = document.getElementById('quote-no').value;
 
-            html2pdf().set({
-                margin: 0, 
-                filename: `${partyAName}_${quoteNo}_报价单.pdf`,
+            const opt = {
+                margin: [0, 0, 0, 0],
+                filename: `${partyAName}_${quoteNo}.pdf`,
                 image: { type: 'jpeg', quality: 1.0 },
-                html2canvas: { scale: 2, useCORS: true, scrollY: 0, backgroundColor: '#ffffff' }, 
+                html2canvas: { 
+                    scale: 2.5, 
+                    useCORS: true, 
+                    scrollY: 0, 
+                    backgroundColor: '#ffffff'
+                }, 
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            }).from(element).save().then(() => {
+            };
+
+            html2pdf().set(opt).from(element).save().then(() => {
                 btn.innerHTML = originalText;
                 inputs.forEach(input => { input.placeholder = input.getAttribute('data-placeholder'); });
                 textareas.forEach(textarea => { textarea.placeholder = textarea.getAttribute('data-placeholder'); });
+            }).catch(err => {
+                btn.innerHTML = originalText;
+                console.error(err);
+                alert('PDF 导出失败，请尝试使用“直接打印”另存为 PDF');
             });
         }
     </script>
